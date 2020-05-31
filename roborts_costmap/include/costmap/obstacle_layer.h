@@ -60,6 +60,7 @@
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/point_cloud_conversion.h>
+#include <roborts_msgs/BufferList.h>
 #include <tf/message_filter.h>
 #include <message_filters/subscriber.h>
 #include "footprint.h"
@@ -69,13 +70,11 @@
 #include "observation_buffer.h"
 #include "map_common.h"
 
-#include "std_msgs/Int32MultiArray.h"
-#include "std_msgs/MultiArrayLayout.h"
-#include "std_msgs/MultiArrayDimension.h"
 
 
 namespace roborts_costmap {
 
+bool MapConverter(double wx, double wy, unsigned int &mx, unsigned int &my);
 class Bufferzone
 {
   public:
@@ -103,7 +102,7 @@ class ObstacleLayer : public CostmapLayer {
                          const std::shared_ptr<ObservationBuffer> &buffer);
   void LaserScanValidInfoCallback(const sensor_msgs::LaserScanConstPtr &message,
                                   const std::shared_ptr<ObservationBuffer> &buffer);
-  void RefereeCallback(const std_msgs::Int32MultiArray::ConstPtr &bufzones_msg);
+  //static char active_barrier[6];
 
  protected:
   bool GetMarkingObservations(std::vector<Observation> &marking_observations) const;
@@ -117,6 +116,7 @@ class ObstacleLayer : public CostmapLayer {
   bool SetOccupied(int zone_index);
   bool SetFree(int zone_index);
   bool footprint_clearing_enabled_, rolling_window_;
+  bool is_sim;
   int combination_method_;
   std::string global_frame_;
   double max_obstacle_height_;
@@ -131,7 +131,7 @@ class ObstacleLayer : public CostmapLayer {
 
   std::vector<Observation> static_clearing_observations_, static_marking_observations_;
   std::chrono::system_clock::time_point reset_time_;
-  char active_barrier[6] = {3,3,3,3,3,3}; // Init to be all threes : Invalid value
+ // Init to be all threes : Invalid value
   Bufferzone bufferzones[6];
 };
 

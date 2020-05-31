@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
   roborts_common
+  roborts_msgs
   laser_geometry
   sensor_msgs
   geometry_msgs

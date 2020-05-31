@@ -4,6 +4,12 @@ define block model
   ranger_return 1
 )
 
+define bufferzone model
+(
+  size [0.54 0.48 0]
+  ranger_return 1
+)
+
 define frontcamera camera
 (
   size [ 0.050 0.050 0.0500 ]
@@ -76,12 +82,22 @@ floorplan
 ( 
   name "RoboMaster Map"
   bitmap "../maps/icra2020.pgm"
-  size [8.2 4.5 0.500]
-  pose [4.1  2.25  0 0 ]
+  size [8.49 4.89 0.500]
+  pose [4.245 2.445 0 0 ]
   #pose [0 0 0 0 ]
 )
 
 # throw in a robot
  rmcar(pose [ 1 1 0 3.14 ] name "rmcar0" color "blue" )
+# rmcar(pose [ 7.79 3.45 0 0.3 ] name "rmcar1" color "red" )
 # throw in a block for test
  block(pose [ 7.79 3.45 0 0.3 ] color "red"  )
+
+# throw in a buffer zone
+ bufferzone(pose [0.75 2.70 5 0] color "yellow")
+ bufferzone(pose [2.10 1.85 5 0] color "yellow")
+ bufferzone(pose [4.24 0.645 5 0] color "yellow")
+
+ bufferzone(pose [4.24 4.245 5 0] color "yellow")
+ bufferzone(pose [6.38 3.04 5 0] color "yellow")
+ bufferzone(pose [7.73 2.00 5 0] color "yellow")

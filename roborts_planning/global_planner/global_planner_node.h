@@ -40,6 +40,8 @@
 
 namespace roborts_global_planner{
 
+void RefereeCallback(const roborts_msgs::BufferList::ConstPtr &array);
+
 /**
  * @brief Node class for global planner module.
  */

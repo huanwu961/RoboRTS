@@ -18,6 +18,10 @@
 #include <csignal>
 
 #include "global_planner_node.h"
+#include "costmap/obstacle_layer.h"
+
+extern bool is_simulation;
+extern char active_barrier[6];
 
 namespace roborts_global_planner{
 
@@ -338,15 +342,36 @@ double GlobalPlannerNode::GetAngle(const geometry_msgs::PoseStamped &pose1,
   return rot1.angleShortestPath(rot2);
 }
 
+void RefereeCallback(const roborts_msgs::BufferList::ConstPtr &array)
+{
+  int i = 0;
+  //std::cout<<"Message received!!!"<<std::endl;
+  for(std::vector<int>::const_iterator it = array->data.begin(); it != array->data.end(); ++it)
+	{
+		active_barrier[i] = *it;
+    i++;
+	}
+  std::cout<<"Message Received: "<<(int)active_barrier[0]<<" "
+           <<(int)active_barrier[1]<<" "<<(int)active_barrier[2]
+           <<" "<<(int)active_barrier[3]<<" "<<(int)active_barrier[4]
+           <<" "<<(int)active_barrier[5]<<std::endl;
+}
+
 GlobalPlannerNode::~GlobalPlannerNode() {
   StopPlanning();
 }
+
+
+
 
 } //namespace roborts_global_planner
 
 int main(int argc, char **argv) {
 
   ros::init(argc, argv, "global_planner_node");
+  ros::NodeHandle nh;
+  ros::Subscriber referee_sub = nh.subscribe("/buffer_sim_info",1000,roborts_global_planner::RefereeCallback);
+  std::cout<<"Connected!!!!"<<std::endl;
   roborts_global_planner::GlobalPlannerNode global_planner;
   ros::spin();
   return 0;

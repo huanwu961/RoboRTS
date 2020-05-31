@@ -336,7 +336,7 @@ void GimbalTask()
     else
     {
       // Code shouldn't reach here if package of string is complete.
-      std::cout<<"Invalid Gimbal command! Received"+ gimbal_mode;
+      // std::cout<<"Invalid Gimbal command! Received"+ gimbal_mode;
       break;
     }
   }

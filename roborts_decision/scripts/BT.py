@@ -12,15 +12,16 @@ class BTNode(object):
     def OnTick(self):
         pass
 
-    def _cleanup(self):
+    def Cleanup(self):
         pass
     
     def Reset(self):
         self._status = "IDLE"
 
     def Cancel(self):
-        self.Reset()
-        self._cleanup()
+        self.Cleanup()
+        self._status = "IDLE"
+        
 
     def __str__(self):
         return self._name
@@ -47,22 +48,24 @@ class Action(BTNode):
     def OnTick(self):
         self.Execute()
         result = self.Update()
+        if result != "RUNNING":
+            self._status = "IDLE"
+            self.Cleanup()
+        print(self._name)
         return result
 
-    def _cleanup(self):
+    def Cleanup(self):
         # TOBE Implemented
         pass
 
 class ConditionNode(BTNode):
-    status = ["SUCCESS","FAILURE","IDLE"]
-    def Cancel(self):
-        self.Reset()
-
+    status = ["SUCCESS","FAILURE"]
     def Update(self):
-        # TO BE Implemented
+        # TO BE Implemented interactive condition
         return self._status
     
     def OnTick(self):
+        print(self._name)
         return self.Update()
 
 class LogicNode(BTNode):
@@ -77,24 +80,22 @@ class LogicNode(BTNode):
         super(LogicNode,self).__init__(name)
 
     def OnTick(self):
-        return self.Execute()
+        result = self.Execute()
+        if result != "RUNNING":
+            self._status = "IDLE"
+        return result
 
     def Execute(self):
         # TO BE Implemented
-        pass
+        return "IDLE"
     
     def getChildNumber(self):
         return len(self._childs)
 
-    def Reset(self):
-        for child in self._childs:
-            child.Reset()
-        self._status = "IDLE"
-
     def Cancel(self):
         for child in self._childs:
             child.Cancel()
-        self.Reset()
+        self._status = "IDLE"
 
     def getChilds(self):
         return list(self._childs)
@@ -105,15 +106,18 @@ class LogicNode(BTNode):
             print("    "*stack+"+ "),
             child.getName(stack+1)
         return self._name
-        
-        
+            
 class LogicFallback(LogicNode):
     def Execute(self):
+        carry_status = "IDLE"
         for child in self._childs:
-            childret = child.OnTick()
+            if carry_status == "IDLE":
+                childret = child.OnTick()
+            else:
+                child.Cancel()
+                continue
             if childret == "SUCCESS":
-                self.Reset()
-                return childret
+                carry_status = "SUCCESS"
             elif childret == "RUNNING":
                 return childret
             elif childret == "IDLE":
@@ -121,8 +125,10 @@ class LogicFallback(LogicNode):
                                 " Parent Name: "+self._name)
             else:
                 continue
-        self.Reset()
-        return "FAILURE"
+        if carry_status == "SUCCESS":
+            return carry_status
+        else:
+            return "FAILURE"
 
 class LogicFallbackMem(LogicNode):
     def __init_(self,name,childs):
@@ -134,7 +140,7 @@ class LogicFallbackMem(LogicNode):
         for i in range(sum(self._visited),len(self._childs)):
             childret = self._childs[i].OnTick()
             if childret == "SUCCESS":
-                self.Reset()
+                self._visited = [0]*len(self._childs)
                 return childret
             elif childret == "RUNNING":
                 return childret
@@ -143,27 +149,29 @@ class LogicFallbackMem(LogicNode):
                                 " Parent Name: "+self._name)
             else:
                 self._visited[i] = 1
-        self.Reset()
-        return "FAILURE"
-
-    def Reset(self):
-        super(LogicFallbackMem,self).Reset()
         self._visited = [0]*len(self._childs)
-
+        return "FAILURE"
+ 
 class LogicSequential(LogicNode):
     def Execute(self):
+        carry_status = "IDLE"
         for child in self._childs:
-            childret = child.OnTick()
+            if carry_status == "IDLE":
+                childret = child.OnTick()
+            else:
+                child.Cancel()
+                continue
             if childret == "FAILURE":
-                self.Reset()
-                return childret
+                carry_status = childret
             elif childret == "RUNNING":
                 return childret
             elif childret == "IDLE":
                 raise Exception("Child Config failed! Child Name: "+str(child)+
                                 " Parent Name: "+self._name)
-        self.Reset()
-        return "SUCCESS"
+        if carry_status == "FAILURE":
+            return carry_status
+        else:
+            return "SUCCESS"
 
 class LogicSequentialMem(LogicNode):
     def __init__(self,name,childs):
@@ -175,7 +183,7 @@ class LogicSequentialMem(LogicNode):
         for i in range(sum(self._visited),len(self._childs)):
             childret = self._childs[i].OnTick()
             if childret == "FAILURE":
-                self.Reset()
+                self._visited = [0]*len(self._childs)
                 return childret
             elif childret == "RUNNING":
                 return childret
@@ -184,13 +192,9 @@ class LogicSequentialMem(LogicNode):
                                 " Parent Name: "+self._name)
             else: 
                 self._visited[i] = 1
-        self.Reset()
-        return "SUCCESS"
-
-    def Reset(self):
-        super(LogicSequentialMem,self).Reset()
         self._visited = [0]*len(self._childs)
-
+        return "SUCCESS"
+        
 class LogicParallel(LogicNode):
     def __init__(self,name,childs,thresh):
         super(LogicParallel,self).__init__(name,childs)
@@ -202,10 +206,8 @@ class LogicParallel(LogicNode):
             rets.append(child.OnTick())
 
         if rets.count("SUCCESS") >= self._thresh:
-            self.Reset()
             return "SUCCESS"
         elif rets.count("FAILURE">= len(self._childs)-self._thresh):
-            self.Reset()
             return "FAILURE"
         elif rets.count("IDLE") > 0:
             raise Exception("Child Config failed! Child Name: "+str(child)+
@@ -224,10 +226,6 @@ class Decorator(BTNode):
     
     def Cancel(self):
         self._child.Cancel()
-        self._status = "IDLE"
-
-    def Reset(self):
-        self._child.Reset()
         self._status = "IDLE"
 
 class InverseDecorator(Decorator):
@@ -258,7 +256,6 @@ class TimedDecorator(Decorator):
             self._last_time = time.time()
         childret = self._child.OnTick()
         if childret == "SUCCESS" or childret == "FAILURE":
-            self.Reset()
             return childret
         elif childret== "IDLE":
             raise Exception("Child Config failed! Child Name: "+str(self._child)+
@@ -282,11 +279,15 @@ class LoopDecorator(Decorator):
     def OnTick(self):
         childret = self._child.OnTick()
         if childret == "FAILURE":
-            self.Reset()
+            self._status = "IDLE"
             return childret
         elif childret == "RUNNING":
             return "RUNNING"
         elif childret == "SUCCESS" and self._counter< self._loop_num:
             self._counter += 1
             return "RUNNING"
+        else:
+            self._status = "IDLE"
+            self._counter = 0
+            return "SUCCESS"
 

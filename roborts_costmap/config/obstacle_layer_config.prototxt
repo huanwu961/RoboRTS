@@ -12,45 +12,45 @@ clearing: true
 footprint_clearing_enabled: false
 marking: true
 is_debug: true
-
+is_sim: true
 zone {
-    start_x: 0.23
-    start_y: 2.55
-    end_x:  0.77
-    end_y: 3.03
+    start_x: 0.6
+    start_y: 2.6
+    end_x:  1.2
+    end_y: 3.1
 }
 
 zone {
-    start_x: 1.63
-    start_y: 1.41
-    end_x: 2.17
-    end_y: 1.89
+    start_x: 1.8
+    start_y: 1.3
+    end_x: 2.35
+    end_y: 2.1
 }
 
 zone {
-    start_x: 3.77
-    start_y: 3.795
-    end_x: 4.31
-    end_y: 4.275
+    start_x: 4.04
+    start_y: 3.80
+    end_x: 4.6
+    end_y: 4.3
 }
 
 zone {
-    start_x: 0.23
-    start_y: 2.55
-    end_x:  0.77
-    end_y: 3.03
+    start_x: 7.10
+    start_y: 1.70
+    end_x:  7.70
+    end_y: 2.20
 }
 
 zone {
-    start_x: 1.63
-    start_y: 1.41
-    end_x: 2.17
-    end_y: 1.89
+    start_x: 5.90
+    start_y: 2.80
+    end_x: 6.45
+    end_y: 3.30
 }
 
 zone {
-    start_x: 3.77
-    start_y: 3.795
-    end_x: 4.31
-    end_y: 4.275
+    start_x: 3.8
+    start_y: 0.4
+    end_x: 4.4
+    end_y: 0.9
 }

@@ -51,7 +51,9 @@
  *********************************************************************/
 #include "obstacle_layer_setting.pb.h"
 #include "obstacle_layer.h"
+#include "buffer_barrier.h"
 #include <vector>
+bool is_simulation = true;
 
 namespace roborts_costmap {
 
@@ -76,6 +78,8 @@ void ObstacleLayer::OnInitialize() {
   std::string topic_string = "LaserScan", sensor_frame = "laser_frame";
   topic_string = para_obstacle.topic_string();
   sensor_frame = para_obstacle.sensor_frame();
+  is_sim = para_obstacle.is_sim();
+  is_simulation = is_sim;
   for(int i=0;i<6;i++)
   {
     bufferzones[i].start_x = para_obstacle.zone(i).start_x();
@@ -83,8 +87,6 @@ void ObstacleLayer::OnInitialize() {
     bufferzones[i].end_x   = para_obstacle.zone(i).end_x();
     bufferzones[i].end_y   = para_obstacle.zone(i).end_y();
   } 
-
-
 
   bool inf_is_valid = false, clearing = false, marking = true;
   inf_is_valid = para_obstacle.inf_is_valid();
@@ -120,6 +122,7 @@ void ObstacleLayer::OnInitialize() {
   reset_time_ = std::chrono::system_clock::now();
   std::shared_ptr<message_filters::Subscriber<sensor_msgs::LaserScan>
   > sub(new message_filters::Subscriber<sensor_msgs::LaserScan>(nh, topic_string, 50));
+
   std::shared_ptr<tf::MessageFilter<sensor_msgs::LaserScan>
   > filter(new tf::MessageFilter<sensor_msgs::LaserScan>(*sub, *tf_, global_frame_, 50));
   if (inf_is_valid) {
@@ -129,6 +132,8 @@ void ObstacleLayer::OnInitialize() {
     filter->registerCallback(
         boost::bind(&ObstacleLayer::LaserScanCallback, this, _1, observation_buffers_.back()));
   }
+
+  // Else: Create the referee system subscriber.
   observation_subscribers_.push_back(sub);
   observation_notifiers_.push_back(filter);
   observation_notifiers_.back()->setTolerance(ros::Duration(0.05));
@@ -142,6 +147,7 @@ void ObstacleLayer::OnInitialize() {
 void ObstacleLayer::LaserScanCallback(const sensor_msgs::LaserScanConstPtr &message,
                                       const std::shared_ptr<ObservationBuffer> &buffer) {
   sensor_msgs::PointCloud2 temp_cloud;
+  //std::cout<<"Received LaserInfo"<<std::endl;
   temp_cloud.header = message->header;
   try {
     projector_.transformLaserScanToPointCloud(temp_cloud.header.frame_id, *message, temp_cloud, *tf_);
@@ -157,6 +163,7 @@ void ObstacleLayer::LaserScanCallback(const sensor_msgs::LaserScanConstPtr &mess
 void ObstacleLayer::LaserScanValidInfoCallback(const sensor_msgs::LaserScanConstPtr &raw_message,
                                                const std::shared_ptr<ObservationBuffer> &buffer) {
   float epsilon = 0.0001, range;
+  //std::cout<<"Received LaserInfo"<<std::endl;
   sensor_msgs::LaserScan message = *raw_message;
   for (size_t i = 0; i < message.ranges.size(); i++) {
     range = message.ranges[i];
@@ -179,15 +186,6 @@ void ObstacleLayer::LaserScanValidInfoCallback(const sensor_msgs::LaserScanConst
   buffer->Unlock();
 }
 
-void ObstacleLayer::RefereeCallback(const std_msgs::Int32MultiArray::ConstPtr &array)
-{
-  int i =0;
-  for(std::vector<int>::const_iterator it = array->data.begin(); it != array->data.end(); ++it)
-	{
-		active_barrier[i] = *it;
-    i++;
-	}
-}
 
 void ObstacleLayer::UpdateBounds(double robot_x,
                                  double robot_y,
@@ -246,21 +244,10 @@ void ObstacleLayer::UpdateBounds(double robot_x,
       }
       unsigned int index = GetIndex(mx, my);
       costmap_[index] = LETHAL_OBSTACLE;
-
       Touch(px, py, min_x, min_y, max_x, max_y);
     }
   }
-  for(int i =0;i<6;i++)
-  {
-    if(active_barrier[i]==1)
-    {
-      SetOccupied(i);
-    }
-    else if(active_barrier==0)
-    {
-      SetFree(i);
-    }
-  }
+  
   UpdateFootprint(robot_x, robot_y, robot_yaw, min_x, min_y, max_x, max_y);
 }
 
@@ -285,14 +272,28 @@ void ObstacleLayer::UpdateCosts(Costmap2D &master_grid, int min_i, int min_j, in
       break;
   }
   unsigned int min_x,min_y,max_x,max_y;
-  bool checker = false;
+  
+  for(int i =0;i<6;i++)
+  {
+    if(active_barrier[i]==1)
+    {
+      SetOccupied(i);
+    }
+    else if(active_barrier[i]==0)
+    {
+      SetFree(i);
+      //std::cout<<"Free The Grid"<<std::endl;
+    }
+  }
   for (int i = 0;i<6;i++)
   {
+    bool checker = false;
     checker = checker || World2Map(bufferzones[i].start_x,bufferzones[i].start_y,min_x,min_y);
     checker = checker && World2Map(bufferzones[i].end_x,bufferzones[i].end_y,max_x,max_y);
     if(checker)
     {
-      UpdateOverwriteByValid(master_grid,min_x,min_y,max_x,max_y);
+       UpdateOverwriteByAdd(master_grid,min_x,min_y,max_x,max_y);
+       //std::cout<<"Overrided Zone: "<<i<<std::endl;
     }
   }
 }
@@ -461,10 +462,12 @@ bool ObstacleLayer::SetOccupied(int zone_index)
     unsigned int min_x, min_y, max_x, max_y;
     if(!World2Map(bufferzones[zone_index].start_x,bufferzones[zone_index].start_y,min_x,min_y))
     {
+      std::cout<<"Failed Set Occupied min: "<<zone_index<<" "<<bufferzones[zone_index].start_x<<min_x<<" "<<min_y<<std::endl;
       return false;
     }
     if(!World2Map(bufferzones[zone_index].end_x,bufferzones[zone_index].end_y,max_x,max_y))
     {
+      std::cout<<"Failed Set Occupied max: "<<zone_index<<max_x<<" "<<max_y<<std::endl;
       return false;
     }
     unsigned int index = 0;
@@ -473,9 +476,10 @@ bool ObstacleLayer::SetOccupied(int zone_index)
       for (int y = min_y;y<=max_y;y++)
       {
         index = GetIndex(x,y);
-        costmap_[index] = LETHAL_OBSTACLE;
+        costmap_[index] = 254;
       }
     }
+    //std::cout<<"Set Occupied: "<<zone_index<<std::endl;
   return true;
 }
 
@@ -502,4 +506,17 @@ bool ObstacleLayer::SetFree(int zone_index)
   return true;
 }
 
+bool MapConverter(double wx, double wy, unsigned int &mx, unsigned int &my){
+  if (wx < 0 || wy < 0) {
+    return false;
+  }
+  mx = (int) ((wx) / 0.047)+8;
+  my = (int) ((wy) / 0.047)+5;
+  if (mx < 200 && my < 200) {
+    return true;
+  }
+  return false;
+}
+
 } //namespace roborts_costmap
+
