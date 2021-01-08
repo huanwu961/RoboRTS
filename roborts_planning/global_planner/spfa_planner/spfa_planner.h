@@ -4,8 +4,13 @@
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 
+#include "proto/spfa_planner_config.pb.h"
+
+#include "alg_factory/algorithm_factory.h"
 #include "state/error_code.h"
 #include "costmap/costmap_interface.h"
+
+#include "../global_planner_base.h"
 
 namespace roborts_global_planner{
 	class SPFAPlanner : public GlobalPlannerBase {
@@ -34,7 +39,7 @@ namespace roborts_global_planner{
   		roborts_common::ErrorInfo SearchPath(const int &start_index,
                                      const int &goal_index,
                                      std::vector<geometry_msgs::PoseStamped> &path);
-	    void Init();
+	    	void Init();
 
 		void SPFA();
 
@@ -44,9 +49,12 @@ namespace roborts_global_planner{
 
 		bool FindAPath();
 
-		std::pair<int,int>operator+(const pair<int,int> &x, pair<int,int> &y) {
-			return std::make_pair(x.first+y.first,x.second+y.second);
-		}
+		/*std::pair<int,int> SPFAPlanner::operator+(const std::pair<int,int> &y) {
+			std::pair<int,int> sum;
+			sum.first = first + y.first;
+			sum.second = second + y.second;
+			return sum;
+		}*/
 
 		void SetValue(int upper, int lower, int left, int right, double value);
 
@@ -57,9 +65,9 @@ namespace roborts_global_planner{
   		//! goal_search_tolerance
   		unsigned int goal_search_tolerance_;
   		//! maximum height size
-  		const unsigned int map_height_max_; //(N)
+  		static const unsigned int map_height_max_ = 110; //(N)
   		//! maximum width size
-  		unsigned int map_width_max_; //(M)
+  		static const unsigned int map_width_max_ = 210; //(M)
   		
   		unsigned int distance_cost_parameter_; //(C)
   		//! gridmap height size
@@ -71,14 +79,22 @@ namespace roborts_global_planner{
   		//! 2d costmap array
   		char s[map_height_max_][map_width_max_];
 
-			int d, start_x_, start_y_, goal_x_, goal_y_; //(d, x, y, xx, yy)
-			bool flag[map_height_max_][map_width_max_], ff[map_height_max_][map_width_max_];
-			double f[map_height_max_][map_width_max_], value[map_height_max_][map_width_max_];
-			std::pair<int,int> seq[map_height_max_*map_width_max_*5],
-			                   last[map_height_max_][map_width_max_],
-												 c[4], dd,
-												 z[map_height_max_*map_width_max_];
-	}
+		static constexpr double eps = 1e-5; 		
+		int d; 
+		int start_x_; 
+		int start_y_; 
+		int goal_x_; 
+		int goal_y_; //(d, x, y, xx, yy)
+		bool flag[map_height_max_][map_width_max_];
+		bool ff[map_height_max_][map_width_max_];
+		double f[map_height_max_][map_width_max_]; 
+		double value[map_height_max_][map_width_max_];
+		std::pair<int,int> seq[map_height_max_*map_width_max_*5]; 
+		std::pair<int,int> last[map_height_max_][map_width_max_]; 
+		std::pair<int,int> c[4];
+		std::pair<int,int> dd;
+		std::pair<int,int> z[map_height_max_*map_width_max_];
+	};
 }
 
 #endif

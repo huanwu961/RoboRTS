@@ -24,8 +24,8 @@ namespace roborts_global_planner{
   		heuristic_factor_ = spfa_planner_config.heuristic_factor();
   		inaccessible_cost_ = spfa_planner_config.inaccessible_cost();
   		goal_search_tolerance_ = spfa_planner_config.goal_search_tolerance()/costmap_ptr->GetCostMap()->GetResolution();
-  		map_height_max_ = spfa_planner_config.map_height_max();
-			map_width_max_ = spfa_planner_config.map_width_max();
+  		//map_height_max_ = spfa_planner_config.map_height_max();
+			//map_width_max_ = spfa_planner_config.map_width_max();
 			distance_cost_parameter_ = spfa_planner_config.distance_cost_parameter();
     }
 
@@ -39,8 +39,8 @@ namespace roborts_global_planner{
 
   		unsigned int start_x, start_y, goal_x, goal_y, tmp_goal_x, tmp_goal_y;
   		unsigned int valid_goal[2];
-  		//unsigned int shortest_dist = std::numeric_limits<unsigned int>::max();
-  		//bool goal_valid = false;
+  		unsigned int shortest_dist = std::numeric_limits<unsigned int>::max();
+  		bool goal_valid = false;
 
   		if (!costmap_ptr_->GetCostMap()->World2Map(start.pose.position.x,
                                              start.pose.position.y,
@@ -134,8 +134,13 @@ namespace roborts_global_planner{
     			s[j][i] = cost_[j*gridmap_width_+i];
 			}
 		}
-		costmap_ptr_->GetCostMap()->Index2Cells(start_index, start_x_, start_y_);
-		costmap_ptr_->GetCostMap()->Index2Cells(goal_index, goal_x_, goal_y_);
+		unsigned int start_x_tmp, start_y_tmp, goal_x_tmp, goal_y_tmp;
+		costmap_ptr_->GetCostMap()->Index2Cells(start_index, start_x_tmp, start_y_tmp);
+		costmap_ptr_->GetCostMap()->Index2Cells(goal_index, goal_x_tmp, goal_y_tmp);
+		start_x_= start_x_tmp;
+		start_y_ = start_y_tmp;
+		goal_x_ = goal_x_tmp;
+		goal_y_ = goal_y_tmp;
 
 		Init();
 		SPFA();
@@ -166,7 +171,8 @@ namespace roborts_global_planner{
     	while (l<r){
         	l++;
 			for (int i=0;i<4;i++){
-            	dd=seq[l]+c[i];
+            	dd.first = seq[l].second+c[i].second;
+							dd.second =seq[l].second +c[i].second;
             	if (dd.first<0||dd.second<0)continue;
             	if (s[dd.first][dd.second]==roborts_costmap::FREE_SPACE &&!flag[dd.first][dd.second]){
                 	value[dd.first][dd.second]=value[seq[l].first][seq[l].second]+1;
@@ -187,9 +193,9 @@ namespace roborts_global_planner{
 
     void SPFAPlanner::SPFA() {
 		int l=0,r=1;
-		seq[r] = std::make_pair(start_x, start_y);
-    	for (int i=1; i<=gridmap_height; i++) {
-        	for (int j=1; j<=gridmap_width; j++) {
+		seq[r] = std::make_pair(start_x_, start_y_);
+    	for (int i=1; i<=gridmap_height_; i++) {
+        	for (int j=1; j<=gridmap_width_; j++) {
         		f[i][j]=1e15;
 			}
 		}
@@ -197,12 +203,13 @@ namespace roborts_global_planner{
     	std::memset(flag,0,sizeof(flag));
     	std::memset(ff,0,sizeof(ff));
 		std::memset(last,0,sizeof(last));
-    	f[x][y]=0;
+    	f[goal_x_][goal_y_]=0;
 
     	while (l<r&&r<5*map_height_max_*map_width_max_-4) {
         	l++;
 			for (int i=0;i<4;i++) {
-            	dd=seq[l]+c[i];
+            	dd.first = seq[l].first +c[i].first;
+							dd.second =seq[l].second + c[i].second;
             	if (s[dd.first][dd.second]==roborts_costmap::FREE_SPACE &&f[dd.first][dd.second]+eps>
                                              f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second]){
                 	f[dd.first][dd.second]=f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second];
@@ -224,7 +231,11 @@ namespace roborts_global_planner{
 		path.clear();
 		geometry_msgs::PoseStamped iter_pos;
 
-		int x=0,y=0,xx[map_height_max_*map_width_max_],yy[map_height_max*map_width_max],now_x=z[1].first,now_y=z[1].second,dd=0;
+		int x=0,y=0;
+		int xx[map_height_max_*map_width_max_];
+		int yy[map_height_max_*map_width_max_];
+		int now_x=z[1].first,now_y=z[1].second;
+		int dd=0;
     	//cout<<now_x<<' '<<now_y<<endl;
     	for (int i=2;i<=d;i++){
         	if (z[i].first-z[i-1].first){
@@ -232,7 +243,8 @@ namespace roborts_global_planner{
             	if (y){
                 	xx[++dd]=x;
 					yy[dd]=y;
-					x=y=0;
+					x=0;
+					y=0;
                 	//cout<<xx[dd]<<' '<<yy[dd]<<endl;
             	}
         	}
@@ -273,15 +285,18 @@ namespace roborts_global_planner{
 	}
 
 
-	void SPFAPlanner::SetValue(int upper, int lower, int left, int right, double value) {
-    	for (int i=upper; i<=lower; i++)
-	        for (int j=left; j<=right; j++)value[i][j]=value;
+	void SPFAPlanner::SetValue(int upper, int lower, int left, int right, double new_value) {
+    	for (int i=upper; i<=lower; i++) {
+	        for (int j=left; j<=right; j++) {
+						value[i][j]=new_value;
+					}
+				}
 	}
 
 	bool SPFAPlanner::FindAPath() {
     	if (ff[goal_x_][goal_y_]) {
         	d=0;
-			Dfs(goal_x_,goal_y);
+			Dfs(goal_x_,goal_y_);
 			return true;
     	}
 		return false;
