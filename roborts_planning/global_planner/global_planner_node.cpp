@@ -18,10 +18,6 @@
 #include <csignal>
 
 #include "global_planner_node.h"
-#include "costmap/obstacle_layer.h"
-
-extern bool is_simulation;
-extern char active_barrier[6];
 
 namespace roborts_global_planner{
 
@@ -89,8 +85,6 @@ ErrorInfo GlobalPlannerNode::Init() {
   path_.header.frame_id = costmap_ptr_->GetGlobalFrameID();
   return ErrorInfo(ErrorCode::OK);
 }
- 
-// Handle Goal input
 
 void GlobalPlannerNode::GoalCallback(const roborts_msgs::GlobalPlannerGoal::ConstPtr &msg) {
 
@@ -171,8 +165,6 @@ void GlobalPlannerNode::GoalCallback(const roborts_msgs::GlobalPlannerGoal::Cons
 
 }
 
-// Interface function of this class.
-
 NodeState GlobalPlannerNode::GetNodeState() {
   std::lock_guard<std::mutex> node_state_lock(node_state_mtx_);
   return node_state_;
@@ -202,8 +194,6 @@ void GlobalPlannerNode::SetGoal(geometry_msgs::PoseStamped goal) {
   std::lock_guard<std::mutex> goal_lock(goal_mtx_);
   goal_ = goal;
 }
-
-// Receive command and determine running condition of robot
 
 void GlobalPlannerNode::StartPlanning() {
   SetNodeState(NodeState::IDLE);
@@ -240,7 +230,7 @@ void GlobalPlannerNode::PlanThread() {
       std::unique_lock<roborts_costmap::Costmap2D::mutex_t> lock(*(costmap_ptr_->GetCostMap()->GetMutex()));
       bool error_set = false;
       //Get the robot current pose
-      while (!costmap_ptr_->GetRobotPose(current_start)) { // The cost map service has shutdown
+      while (!costmap_ptr_->GetRobotPose(current_start)) {
         if (!error_set) {
           ROS_ERROR("Get Robot Pose Error.");
           SetErrorInfo(ErrorInfo(ErrorCode::GP_GET_POSE_ERROR, "Get Robot Pose Error."));
@@ -252,13 +242,13 @@ void GlobalPlannerNode::PlanThread() {
       //Get the robot current goal and transform to the global frame
       current_goal = GetGoal();
 
-      if (current_goal.header.frame_id != costmap_ptr_->GetGlobalFrameID()) { // If Goal is different than run the code. However, since decouple structure
-        current_goal = costmap_ptr_->Pose2GlobalFrame(current_goal);          // Two Goal may be same.
+      if (current_goal.header.frame_id != costmap_ptr_->GetGlobalFrameID()) {
+        current_goal = costmap_ptr_->Pose2GlobalFrame(current_goal);
         SetGoal(current_goal);
       }
 
       //Plan
-      error_info = global_planner_ptr_->Plan(current_start, current_goal, current_path); // What 
+      error_info = global_planner_ptr_->Plan(current_start, current_goal, current_path);
 
     }
 
@@ -283,7 +273,7 @@ void GlobalPlannerNode::PlanThread() {
       error_info = ErrorInfo(ErrorCode::GP_MAX_RETRIES_FAILURE, "Over max retries.");
       SetNodeState(NodeState::FAILURE);
       retries=0;
-    } else if (error_info == ErrorInfo(ErrorCode::GP_GOAL_INVALID_ERROR)){   // Error Checking mechanism for decision making
+    } else if (error_info == ErrorInfo(ErrorCode::GP_GOAL_INVALID_ERROR)){
       //When goal is not reachable, return failure immediately
       ROS_ERROR("Current goal is not valid!");
       SetNodeState(NodeState::FAILURE);
@@ -342,36 +332,15 @@ double GlobalPlannerNode::GetAngle(const geometry_msgs::PoseStamped &pose1,
   return rot1.angleShortestPath(rot2);
 }
 
-void RefereeCallback(const roborts_msgs::BufferList::ConstPtr &array)
-{
-  int i = 0;
-  //std::cout<<"Message received!!!"<<std::endl;
-  for(std::vector<int>::const_iterator it = array->data.begin(); it != array->data.end(); ++it)
-	{
-		active_barrier[i] = *it;
-    i++;
-	}
-  std::cout<<"Message Received: "<<(int)active_barrier[0]<<" "
-           <<(int)active_barrier[1]<<" "<<(int)active_barrier[2]
-           <<" "<<(int)active_barrier[3]<<" "<<(int)active_barrier[4]
-           <<" "<<(int)active_barrier[5]<<std::endl;
-}
-
 GlobalPlannerNode::~GlobalPlannerNode() {
   StopPlanning();
 }
-
-
-
 
 } //namespace roborts_global_planner
 
 int main(int argc, char **argv) {
 
   ros::init(argc, argv, "global_planner_node");
-  ros::NodeHandle nh;
-  ros::Subscriber referee_sub = nh.subscribe("/buffer_sim_info",1000,roborts_global_planner::RefereeCallback);
-  std::cout<<"Connected!!!!"<<std::endl;
   roborts_global_planner::GlobalPlannerNode global_planner;
   ros::spin();
   return 0;
