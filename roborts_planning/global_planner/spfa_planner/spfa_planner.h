@@ -95,6 +95,14 @@ namespace roborts_global_planner{
 		std::pair<int,int> dd;
 		std::pair<int,int> z[map_height_max_*map_width_max_];
 	};
+
+//std::vector<int> SPFAPlanner::f_score_;
+roborts_common::REGISTER_ALGORITHM(GlobalPlannerBase,
+                                 "spfa_planner",
+                                 SPFAPlanner,
+                                 std::shared_ptr<roborts_costmap::CostmapInterface>);
+
+
 }
 
 #endif

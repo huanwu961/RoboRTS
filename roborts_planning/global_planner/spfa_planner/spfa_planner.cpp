@@ -145,7 +145,7 @@ namespace roborts_global_planner{
 		Init();
 		SPFA();
 		if (!FindAPath()) {
-			return ErrorCode::GP_PATH_SEARCH_ERROR;
+			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
 		}
 		Smooth(path);
 
