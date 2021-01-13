@@ -1,6 +1,8 @@
 #ifndef ROBORTS_PLANNING_GLOBAL_PLANNER_SPFA_PLANNER_H
 #define ROBORTS_PLANNING_GLOBAL_PLANNER_SPFA_PLANNER_H
 
+#include <iostream>
+
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 
@@ -43,7 +45,7 @@ namespace roborts_global_planner{
 
 		void SPFA();
 
-	 	void Smooth(std::vector<geometry_msgs::PoseStamped> &path);
+	 	bool Smooth(std::vector<geometry_msgs::PoseStamped> &path);
 
 		void Dfs(int x,int y);
 

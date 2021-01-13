@@ -10,12 +10,11 @@ namespace roborts_global_planner{
     	gridmap_width_(costmap_ptr_->GetCostMap()->GetSizeXCell()),
     	gridmap_height_(costmap_ptr_->GetCostMap()->GetSizeYCell()),
     	cost_(costmap_ptr_->GetCostMap()->GetCharMap()) {
-
     	//initialize path to get configuration
 		SPFAPlannerConfig spfa_planner_config;
   		std::string full_path = ros::package::getPath("roborts_planning") + "/global_planner/spfa_planner/"\
       		"config/spfa_planner_config.prototxt";
-
+			ROS_INFO("spfa_planner.cpp, line 17");
   		if (!roborts_common::ReadProtoFromTextFile(full_path.c_str(),
                                            &spfa_planner_config)) {
     		ROS_ERROR("Cannot load spfa planner protobuf configuration file.");
@@ -24,8 +23,6 @@ namespace roborts_global_planner{
   		heuristic_factor_ = spfa_planner_config.heuristic_factor();
   		inaccessible_cost_ = spfa_planner_config.inaccessible_cost();
   		goal_search_tolerance_ = spfa_planner_config.goal_search_tolerance()/costmap_ptr->GetCostMap()->GetResolution();
-  		//map_height_max_ = spfa_planner_config.map_height_max();
-			//map_width_max_ = spfa_planner_config.map_width_max();
 			distance_cost_parameter_ = spfa_planner_config.distance_cost_parameter();
     }
 
@@ -43,18 +40,18 @@ namespace roborts_global_planner{
   		bool goal_valid = false;
 
   		if (!costmap_ptr_->GetCostMap()->World2Map(start.pose.position.x,
-                                             start.pose.position.y,
-                                             start_x,
-                                             start_y)) {
+                                             																														start.pose.position.y,
+                                             																														start_x,
+                                             																														start_y)) {
     		ROS_WARN("Failed to transform start pose from map frame to costmap frame");
     		return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR,
                      "Start pose can't be transformed to costmap frame.");
   		}
 
   		if (!costmap_ptr_->GetCostMap()->World2Map(goal.pose.position.x,
-                                             goal.pose.position.y,
-                                             goal_x,
-                                             goal_y)) {
+                                             																														goal.pose.position.y,
+                                             																														goal_x,
+                                             																														goal_y)) {
     		ROS_WARN("Failed to transform goal pose from map frame to costmap frame");
     		return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR,
                      "Goal pose can't be transformed to costmap frame.");
@@ -131,7 +128,7 @@ namespace roborts_global_planner{
 		// copy the data from cost_ to s (only record obstacle information)
 		for (int i=0; i<gridmap_height_; i++) {
     		for (int j=0; j<gridmap_width_; j++) {
-    			s[j][i] = cost_[j*gridmap_width_+i];
+    			s[j][i] =  costmap_ptr_->GetCostMap()->GetCost(j, i);
 			}
 		}
 		unsigned int start_x_tmp, start_y_tmp, goal_x_tmp, goal_y_tmp;
@@ -145,13 +142,18 @@ namespace roborts_global_planner{
 		Init();
 		SPFA();
 		if (!FindAPath()) {
+			ROS_WARN("Global planner cannot search the valid path! ");
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
 		}
-		Smooth(path);
+		if (!	Smooth(path)) {
+			ROS_WARN("Global planner cannot smooth the valid path! ");
+			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Smooth path failedl. ");
+		}
 
-  		return ErrorInfo(ErrorCode::OK);
+  		return ErrorInfo::OK();
 
 	}
+
 
 	void SPFAPlanner::Init() {
     	c[0].first=c[2].second=1;
@@ -227,7 +229,7 @@ namespace roborts_global_planner{
 	}
 
 
-	void SPFAPlanner::Smooth(std::vector<geometry_msgs::PoseStamped> &path) {
+	bool SPFAPlanner::Smooth(std::vector<geometry_msgs::PoseStamped> &path) {
 		path.clear();
 		geometry_msgs::PoseStamped iter_pos;
 
@@ -275,6 +277,8 @@ namespace roborts_global_planner{
         	//zz[++top_zz]=make_pair(now_x,now_y);
     	}
 		for (int i=1;i<=dd;i++)xx[i]+=xx[i-1],yy[i]+=yy[i-1];
+
+		return true;
 	}
 
 
