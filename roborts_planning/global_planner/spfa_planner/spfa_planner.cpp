@@ -125,24 +125,31 @@ namespace roborts_global_planner{
   		gridmap_height_ = costmap_ptr_->GetCostMap()->GetSizeYCell();
   		ROS_INFO("Search in a map %d", gridmap_width_*gridmap_height_);
 		cost_ = costmap_ptr_->GetCostMap()->GetCharMap();
-		// copy the data from cost_ to s (only record obstacle information)
-		for (int i=0; i<gridmap_height_; i++) {
-    		for (int j=0; j<gridmap_width_; j++) {
-    			s[i][j] =  costmap_ptr_->GetCostMap()->GetCost(i, j);
-			}
-		}
+
+		int d;
+	 bool flag[map_height_max_][map_width_max_];
+		bool ff[map_height_max_][map_width_max_];
+		double f[map_height_max_][map_width_max_];
+		double value[map_height_max_][map_width_max_];
+		std::pair<int,int> seq[map_height_max_*map_width_max_*5];
+		std::pair<int,int> last[map_height_max_][map_width_max_];
+		std::pair<int,int> c[4];
+		std::pair<int,int> dd;
+		std::pair<int,int> z[map_height_max_*map_width_max_];
+
 		unsigned int start_x, start_y, goal_x, goal_y;
 		costmap_ptr_->GetCostMap()->Index2Cells(start_index, start_x, start_y);
 		costmap_ptr_->GetCostMap()->Index2Cells(goal_index, goal_x, goal_y);
 
-		Init();
-		SPFA(start_x, start_y, goal_x, goal_y);
-		if (!FindAPath(start_x, start_y, goal_x, goal_y)) {
-			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 141] ");
+		Init(d, flag, f, ff, value, seq, last, c, dd, z);
+		SPFA(start_x, start_y, goal_x, goal_y, d, flag, f, ff, value, seq, last, c, dd, z);
+		if (!FindAPath(start_x, start_y, goal_x, goal_y, d, ff, last, z)) {
+			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 147] ");
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
 		}
-		if (!	Smooth(path)) {
-			ROS_WARN("Global planner cannot smooth the valid path [spfa_planner.cpp 145] ");
+		ROS_WARN("[spfa_planner.cpp 150]");
+		if (!	Smooth(path, d, z)) {
+			ROS_WARN("Global planner cannot smooth the valid path [spfa_planner.cpp 152] ");
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Smooth path failedl. ");
 		}
 
@@ -151,29 +158,40 @@ namespace roborts_global_planner{
 	}
 
 
-	void SPFAPlanner::Init() {
+	void SPFAPlanner::Init(int &d,
+	bool flag[map_height_max_][map_width_max_],
+	double f[map_height_max_][map_width_max_],
+	bool ff[map_height_max_][map_width_max_],
+	double value[map_height_max_][map_width_max_],
+	std::pair<int, int> seq[map_height_max_*map_width_max_*5],
+	std::pair<int, int> last[map_height_max_][map_width_max_],
+	std::pair<int, int> c[4],
+	std::pair<int, int> &dd,
+	std::pair<int, int> z[map_height_max_*map_width_max_]) {
     	c[0].first=c[2].second=1;
+			c[0].second=c[2].first=c[1].second=c[3].first=0;
     	c[1].first=c[3].second=-1;
 
 		int l=0,r=0;
     	for (int i=0; i<=gridmap_height_+1; i++){
     		for (int j=0; j<=gridmap_width_+1; j++){
             	value[i][j]=flag[i][j]=0;
-            	if (s[i][j]!=roborts_costmap::FREE_SPACE){
+            	if (costmap_ptr_->GetCostMap()->GetCost(i,j)>= roborts_costmap::INSCRIBED_INFLATED_OBSTACLE){
                 	flag[i][j]=1;
                 	seq[++r]= std::make_pair(i,j);
             	}
         	}
 		}
-
+ROS_WARN("r_init:%d",r)	;
     	while (l<r){
-        	l++;
+        	l++;//ROS_WARN("l_init:%d",l)	;
 			for (int i=0;i<4;i++){
-            	dd.first = seq[l].second+c[i].second;
+            	dd.first = seq[l].first+c[i].first;
 							dd.second =seq[l].second +c[i].second;
-            	if (dd.first<0||dd.second<0)continue;
-            	if (s[dd.first][dd.second]==roborts_costmap::FREE_SPACE &&!flag[dd.first][dd.second]){
+            	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_)continue;
+            	if (costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second)< roborts_costmap::INSCRIBED_INFLATED_OBSTACLE &&!flag[dd.first][dd.second]){
                 	value[dd.first][dd.second]=value[seq[l].first][seq[l].second]+1;
+							//		ROS_WARN("dd:%d,%d,value_dd:%lf",dd.first,dd.second,value[dd.first][dd.second])	;
                 	seq[++r]=dd;
 					flag[dd.first][dd.second]=1;
             	}
@@ -192,7 +210,17 @@ namespace roborts_global_planner{
     void SPFAPlanner::SPFA(const unsigned int &start_x,
 																												const unsigned int &start_y,
 																											const unsigned int &goal_x,
-																										const unsigned int &goal_y) {
+																										const unsigned int &goal_y,
+																										int &d,
+																										bool flag[map_height_max_][map_width_max_],
+																										double f[map_height_max_][map_width_max_],
+																										bool ff[map_height_max_][map_width_max_],
+																										double value[map_height_max_][map_width_max_],
+																										std::pair<int, int> seq[map_height_max_*map_width_max_*5],
+																										std::pair<int, int> last[map_height_max_][map_width_max_],
+																										std::pair<int, int> c[4],
+																										std::pair<int, int> &dd,
+																										std::pair<int, int> z[map_height_max_*map_width_max_]) {
 		int l=0,r=1;
 		seq[r] = std::make_pair(start_x, start_y);
     	for (int i=1; i<=gridmap_height_; i++) {
@@ -201,21 +229,33 @@ namespace roborts_global_planner{
 			}
 		}
 
-    	std::memset(flag,0,sizeof(flag));
-    	std::memset(ff,0,sizeof(ff));
-			std::memset(last,0,sizeof(last));
-    	f[goal_x][goal_y]=0;
+			for (int i=0; i<map_height_max_; i++) {
+				for (int j=0; j<map_width_max_; j++) {
+					flag[i][j] = 0;
+					ff[i][j]= 0;
+					last[i][j] = std::make_pair(0, 0);
+				}
+			}
+    	f[start_x][start_y]=0;
 
     	while (l<r&&r<5*map_height_max_*map_width_max_-4) {
-        	l++;
+        	l++;//ROS_WARN("L:%d,seq:%d,%d",l,seq[l].first,seq[l].second);
+				//	ROS_WARN("value:%.2lf",value[seq[l].first][seq[l].second]);
+				//	ROS_WARN("f:%.2lf",f[seq[l].first][seq[l].second]);
 			for (int i=0;i<4;i++) {
             	dd.first = seq[l].first +c[i].first;
 							dd.second =seq[l].second + c[i].second;
-            	if (s[dd.first][dd.second]==roborts_costmap::FREE_SPACE &&f[dd.first][dd.second]+eps>
+            	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_)continue;
+							//ROS_WARN("freespace:%d , cost:%d", roborts_costmap::, costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second));
+            	if (costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second)< roborts_costmap::INSCRIBED_INFLATED_OBSTACLE &&f[dd.first][dd.second]-eps>
                                              f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second]){
+									//ROS_WARN("L:%d,dd:%d,%d;before:%.2lf;after:%.2lf",l,dd.first,dd.second,f[dd.first][dd.second]+eps,f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second]);
+									//ROS_WARN("flag:%d",flag[dd.first][dd.second])	;
                 	f[dd.first][dd.second]=f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second];
                 	last[dd.first][dd.second]=seq[l];
+								//	if (!ff[dd.first][dd.second])ROS_WARN("ff1:%d,%d",dd.first,dd.second);
                 	ff[dd.first][dd.second]=1;
+								//	if (!ff[dd.first][dd.second])ROS_WARN("ff2:%d,%d",dd.first,dd.second);
                 	if (!flag[dd.first][dd.second]) {
                     	seq[++r]=dd;
 						flag[dd.first][dd.second]=1;
@@ -228,7 +268,9 @@ namespace roborts_global_planner{
 	}
 
 
-	bool SPFAPlanner::Smooth(std::vector<geometry_msgs::PoseStamped> &path) {
+	bool SPFAPlanner::Smooth(std::vector<geometry_msgs::PoseStamped> &path,
+		int &d,
+		std::pair<int, int> z[map_height_max_*map_width_max_]) {
 		path.clear();
 		geometry_msgs::PoseStamped iter_pos;
 
@@ -237,7 +279,7 @@ namespace roborts_global_planner{
 		int yy[map_height_max_*map_width_max_];
 		int now_x=z[1].first,now_y=z[1].second;
 		int dd=0;
-    	//cout<<now_x<<' '<<now_y<<endl;
+	//ROS_WARN("[spfa_planner.cpp 272]");
     	for (int i=2;i<=d;i++){
         	if (z[i].first-z[i-1].first){
             	x+=z[i].first-z[i-1].first;
@@ -259,57 +301,65 @@ namespace roborts_global_planner{
             	}
         	}
     	}
+
 		if (x!=0 or y!=0){
         	xx[++dd]=x;yy[dd]=y;x=y=0;
     	}
     	xx[dd+1]=yy[dd+1]=1e9;
+			ROS_WARN("[spfa_planner.cpp 299],%d,%d",dd,d);
     	for (int i=1;i<=dd;){
         	// cout<<now_x<<' '<<now_y<<endl;
         	int j=i,dx=0,dy=0;
+					ROS_WARN("[spfa_planner.cpp 303]");
         	for (;xx[j]==xx[i]&&yy[j]==yy[i];j++) dx+=xx[j],dy+=yy[j];
         	now_x+=dx;now_y+=dy;
         	//write(now_x);putchar(' ');write(now_y);putchar(' ');puts("This is new route.");
         	i=j;
-
+					ROS_WARN("[spfa_planner.cpp 306]");
     		costmap_ptr_->GetCostMap()->Map2World(now_x, now_y, iter_pos.pose.position.x, iter_pos.pose.position.y);
     		path.push_back(iter_pos);
         	//zz[++top_zz]=make_pair(now_x,now_y);
     	}
 		for (int i=1;i<=dd;i++)xx[i]+=xx[i-1],yy[i]+=yy[i-1];
-
+ROS_WARN("[spfa_planner.cpp 324]");
 		return true;
 	}
 
 
-	void SPFAPlanner::Dfs(int x,int y) {//to get the path
+	void SPFAPlanner::Dfs(int x,int y,int &d,
+		std::pair<int, int> last[map_height_max_][map_width_max_],
+		std::pair<int, int> z[map_height_max_*map_width_max_]) {//to get the path
     	if (last[x][y].first!=0)
-        	Dfs(last[x][y].first,last[x][y].second);
-    	z[++d]= std::make_pair(x,y);
+        	Dfs(last[x][y].first,last[x][y].second, d, last, z);
+    	z[++d]= std::make_pair(x,y);//ROS_WARN("x,y:%d,%d",x, y);
 	}
 
 
-	void SPFAPlanner::SetValue(int upper, int lower, int left, int right, double new_value) {
+	/*void SPFAPlanner::SetValue(int upper, int lower, int left, int right, double new_value) {
     	for (int i=upper; i<=lower; i++) {
 	        for (int j=left; j<=right; j++) {
 						value[i][j]=new_value;
 					}
 				}
-	}
+	}*/
 
 	bool SPFAPlanner::FindAPath(const unsigned int &start_x,
 																											const unsigned int &start_y,
 																										const unsigned int &goal_x,
-																									const unsigned int &goal_y) {
+																									const unsigned int &goal_y,
+																									int &d,
+																									bool ff[map_height_max_][map_width_max_],
+																									std::pair<int, int> last[map_height_max_][map_width_max_],
+																									std::pair<int, int> z[map_height_max_*map_width_max_]) {
     	if (ff[goal_x][goal_y]) {
-						ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 304] ");
         	d=0;
-					Dfs(goal_x,goal_y);
+					Dfs(goal_x,goal_y, d, last, z);
 					return true;
     	}
 		return false;
     //  for (int i=1;i<=n;i++){
     //     for (int j=1;j<=m;j++)write(f[i][j]),putchar(' ');
     //     puts("");
-    }
+	}
 
 }
