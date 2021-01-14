@@ -276,11 +276,7 @@ ROS_WARN("r_init:%d",r)	;
 		iter_pos.pose.orientation.w = 1;
 		iter_pos.header.frame_id = "map";
 		path.clear();
-		for (int i=1;i<=d;i++){
-			costmap_ptr_->GetCostMap()->Map2World(z[i].first, z[i].second, iter_pos.pose.position.x, iter_pos.pose.position.y);
-			path.push_back(iter_pos);
-		}
-		/*int x=0,y=0;
+		int x=0,y=0;
 		int xx[map_height_max_*map_width_max_];
 		int yy[map_height_max_*map_width_max_];
 		int now_x=z[1].first,now_y=z[1].second;
@@ -302,7 +298,7 @@ ROS_WARN("r_init:%d",r)	;
             	if (x){
                 	xx[++dd]=x;
 					yy[dd]=y;
-					x=y=0;now_y
+					x=y=0;
                 	//cout<<xx[dd]<<' '<<yy[dd]<<endl;
             	}
         	}
@@ -326,7 +322,7 @@ ROS_WARN("r_init:%d",r)	;
     		path.push_back(iter_pos);
         	//zz[++top_zz]=make_pair(now_x,now_y);
     	}
-		for (int i=1;i<=dd;i++)xx[i]+=xx[i-1],yy[i]+=yy[i-1];*/
+		for (int i=1;i<=dd;i++)xx[i]+=xx[i-1],yy[i]+=yy[i-1];
 ROS_WARN("[spfa_planner.cpp 324]");
 		return true;
 	}
