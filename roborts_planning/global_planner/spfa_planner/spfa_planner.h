@@ -43,13 +43,13 @@ namespace roborts_global_planner{
                                      std::vector<geometry_msgs::PoseStamped> &path);
 	    	void Init();
 
-		void SPFA();
+		void SPFA(const unsigned int &start_x, const unsigned int &start_y, const unsigned int &goal_x, const unsigned int &goal_y);
 
 	 	bool Smooth(std::vector<geometry_msgs::PoseStamped> &path);
 
 		void Dfs(int x,int y);
 
-		bool FindAPath();
+		bool FindAPath(const unsigned int &start_x, const unsigned int &start_y, const unsigned int &goal_x, const unsigned int &goal_y);
 
 		/*std::pair<int,int> SPFAPlanner::operator+(const std::pair<int,int> &y) {
 			std::pair<int,int> sum;
@@ -79,23 +79,20 @@ namespace roborts_global_planner{
   		//! gridmap cost array
   		unsigned char *cost_;
   		//! 2d costmap array
-  		char s[map_height_max_][map_width_max_];
+		static char s[map_height_max_][map_width_max_];
 
 		static constexpr double eps = 1e-5; 		
-		int d; 
-		int start_x_; 
-		int start_y_; 
-		int goal_x_; 
-		int goal_y_; //(d, x, y, xx, yy)
-		bool flag[map_height_max_][map_width_max_];
-		bool ff[map_height_max_][map_width_max_];
-		double f[map_height_max_][map_width_max_]; 
-		double value[map_height_max_][map_width_max_];
-		std::pair<int,int> seq[map_height_max_*map_width_max_*5]; 
-		std::pair<int,int> last[map_height_max_][map_width_max_]; 
-		std::pair<int,int> c[4];
-		std::pair<int,int> dd;
-		std::pair<int,int> z[map_height_max_*map_width_max_];
+		static int d; 
+		static bool flag[map_height_max_][map_width_max_];
+		static bool ff[map_height_max_][map_width_max_];
+		static double f[map_height_max_][map_width_max_]; 
+		static double value[map_height_max_][map_width_max_];
+		static std::pair<int,int> seq[map_height_max_*map_width_max_*5]; 
+		static std::pair<int,int> last[map_height_max_][map_width_max_]; 
+		static std::pair<int,int> c[4];
+		static std::pair<int,int> dd;
+		static std::pair<int,int> z[map_height_max_*map_width_max_];
+  		
 	};
 
 //std::vector<int> SPFAPlanner::f_score_;

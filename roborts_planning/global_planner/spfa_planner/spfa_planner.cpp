@@ -128,25 +128,21 @@ namespace roborts_global_planner{
 		// copy the data from cost_ to s (only record obstacle information)
 		for (int i=0; i<gridmap_height_; i++) {
     		for (int j=0; j<gridmap_width_; j++) {
-    			s[j][i] =  costmap_ptr_->GetCostMap()->GetCost(j, i);
+    			s[i][j] =  costmap_ptr_->GetCostMap()->GetCost(i, j);
 			}
 		}
-		unsigned int start_x_tmp, start_y_tmp, goal_x_tmp, goal_y_tmp;
-		costmap_ptr_->GetCostMap()->Index2Cells(start_index, start_x_tmp, start_y_tmp);
-		costmap_ptr_->GetCostMap()->Index2Cells(goal_index, goal_x_tmp, goal_y_tmp);
-		start_x_= start_x_tmp;
-		start_y_ = start_y_tmp;
-		goal_x_ = goal_x_tmp;
-		goal_y_ = goal_y_tmp;
+		unsigned int start_x, start_y, goal_x, goal_y;
+		costmap_ptr_->GetCostMap()->Index2Cells(start_index, start_x, start_y);
+		costmap_ptr_->GetCostMap()->Index2Cells(goal_index, goal_x, goal_y);
 
 		Init();
-		SPFA();
-		if (!FindAPath()) {
-			ROS_WARN("Global planner cannot search the valid path! ");
+		SPFA(start_x, start_y, goal_x, goal_y);
+		if (!FindAPath(start_x, start_y, goal_x, goal_y)) {
+			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 141] ");
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
 		}
 		if (!	Smooth(path)) {
-			ROS_WARN("Global planner cannot smooth the valid path! ");
+			ROS_WARN("Global planner cannot smooth the valid path [spfa_planner.cpp 145] ");
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Smooth path failedl. ");
 		}
 
@@ -193,9 +189,12 @@ namespace roborts_global_planner{
 	}
 
 
-    void SPFAPlanner::SPFA() {
+    void SPFAPlanner::SPFA(const unsigned int &start_x,
+																												const unsigned int &start_y,
+																											const unsigned int &goal_x,
+																										const unsigned int &goal_y) {
 		int l=0,r=1;
-		seq[r] = std::make_pair(start_x_, start_y_);
+		seq[r] = std::make_pair(start_x, start_y);
     	for (int i=1; i<=gridmap_height_; i++) {
         	for (int j=1; j<=gridmap_width_; j++) {
         		f[i][j]=1e15;
@@ -204,8 +203,8 @@ namespace roborts_global_planner{
 
     	std::memset(flag,0,sizeof(flag));
     	std::memset(ff,0,sizeof(ff));
-		std::memset(last,0,sizeof(last));
-    	f[goal_x_][goal_y_]=0;
+			std::memset(last,0,sizeof(last));
+    	f[goal_x][goal_y]=0;
 
     	while (l<r&&r<5*map_height_max_*map_width_max_-4) {
         	l++;
@@ -297,11 +296,15 @@ namespace roborts_global_planner{
 				}
 	}
 
-	bool SPFAPlanner::FindAPath() {
-    	if (ff[goal_x_][goal_y_]) {
+	bool SPFAPlanner::FindAPath(const unsigned int &start_x,
+																											const unsigned int &start_y,
+																										const unsigned int &goal_x,
+																									const unsigned int &goal_y) {
+    	if (ff[goal_x][goal_y]) {
+						ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 304] ");
         	d=0;
-			Dfs(goal_x_,goal_y_);
-			return true;
+					Dfs(goal_x,goal_y);
+					return true;
     	}
 		return false;
     //  for (int i=1;i<=n;i++){
