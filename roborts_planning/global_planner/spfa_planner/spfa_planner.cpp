@@ -176,27 +176,27 @@ namespace roborts_global_planner{
     	for (int i=0; i<=gridmap_height_+1; i++){
     		for (int j=0; j<=gridmap_width_+1; j++){
             	value[i][j]=flag[i][j]=0;
-            	if (costmap_ptr_->GetCostMap()->GetCost(i,j)>= roborts_costmap::INSCRIBED_INFLATED_OBSTACLE){
+            	if (costmap_ptr_->GetCostMap()->GetCost(i,j)>= roborts_costmap::LETHAL_OBSTACLE){
                 	flag[i][j]=1;
                 	seq[++r]= std::make_pair(i,j);
             	}
         	}
 		}
-ROS_WARN("r_init:%d",r)	;
+
     	while (l<r){
         	l++;//ROS_WARN("l_init:%d",l)	;
 			for (int i=0;i<4;i++){
             	dd.first = seq[l].first+c[i].first;
 							dd.second =seq[l].second +c[i].second;
             	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_)continue;
-            	if (costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second)< roborts_costmap::INSCRIBED_INFLATED_OBSTACLE &&!flag[dd.first][dd.second]){
+            	if (costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second)< roborts_costmap::LETHAL_OBSTACLE &&!flag[dd.first][dd.second]){
                 	value[dd.first][dd.second]=value[seq[l].first][seq[l].second]+1;
 							//		ROS_WARN("dd:%d,%d,value_dd:%lf",dd.first,dd.second,value[dd.first][dd.second])	;
                 	seq[++r]=dd;
 					flag[dd.first][dd.second]=1;
             	}
         	}
-    	}
+    	}ROS_WARN("r_init:%d",r)	;
 
     	for (int i=1; i<=gridmap_height_; i++){
     		for (int j=1; j<=gridmap_width_; j++) {
@@ -238,8 +238,9 @@ ROS_WARN("r_init:%d",r)	;
 			}
     	f[start_x][start_y]=0;
 
-    	while (l<r&&r<5*map_height_max_*map_width_max_-4) {
+    	while (l!=r) {
         	l++;//ROS_WARN("L:%d,seq:%d,%d",l,seq[l].first,seq[l].second);
+					if (l==map_height_max_*map_width_max_*5-4)l=0;
 				//	ROS_WARN("value:%.2lf",value[seq[l].first][seq[l].second]);
 				//	ROS_WARN("f:%.2lf",f[seq[l].first][seq[l].second]);
 			for (int i=0;i<4;i++) {
@@ -257,7 +258,9 @@ ROS_WARN("r_init:%d",r)	;
                 	ff[dd.first][dd.second]=1;
 								//	if (!ff[dd.first][dd.second])ROS_WARN("ff2:%d,%d",dd.first,dd.second);
                 	if (!flag[dd.first][dd.second]) {
-                    	seq[++r]=dd;
+										r++;
+										if (r==map_height_max_*map_width_max_*5-4)r=0;
+                    	seq[r]=dd;
 						flag[dd.first][dd.second]=1;
                 	}
             	}
