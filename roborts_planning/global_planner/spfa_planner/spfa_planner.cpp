@@ -177,7 +177,7 @@ namespace roborts_global_planner{
     	for (int i=0; i<=gridmap_height_+1; i++){
     		for (int j=0; j<=gridmap_width_+1; j++){
             	value[i][j]=flag[i][j]=0;
-            	if (costmap_ptr_->GetCostMap()->GetCost(i,j)>= roborts_costmap::LETHAL_OBSTACLE){
+            	if (costmap_ptr_->GetCostMap()->GetCost(j,i)>= roborts_costmap::LETHAL_OBSTACLE){
                 	flag[i][j]=1;
                 	seq[++r]= std::make_pair(i,j);
             	}
@@ -190,7 +190,7 @@ namespace roborts_global_planner{
             	dd.first = seq[l].first+c[i].first;
 							dd.second =seq[l].second +c[i].second;
             	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_)continue;
-            	if (costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second)< roborts_costmap::LETHAL_OBSTACLE &&!flag[dd.first][dd.second]){
+            	if (costmap_ptr_->GetCostMap()->GetCost(dd.second, dd.first)< roborts_costmap::LETHAL_OBSTACLE &&!flag[dd.first][dd.second]){
                 	value[dd.first][dd.second]=value[seq[l].first][seq[l].second]+1;
 							//ROS_WARN("dd:%d,%d,value_dd:%lf",dd.first,dd.second,value[dd.first][dd.second])	;
                 	seq[++r]=dd;
