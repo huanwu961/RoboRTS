@@ -23,7 +23,7 @@ namespace roborts_global_planner{
   		heuristic_factor_ = spfa_planner_config.heuristic_factor();
   		inaccessible_cost_ = spfa_planner_config.inaccessible_cost();
   		goal_search_tolerance_ = spfa_planner_config.goal_search_tolerance()/costmap_ptr->GetCostMap()->GetResolution();
-			distance_cost_parameter_ = spfa_planner_config.distance_cost_parameter();
+		distance_cost_parameter_ = spfa_planner_config.distance_cost_parameter();
     }
 
     SPFAPlanner::~SPFAPlanner() {
@@ -143,12 +143,12 @@ namespace roborts_global_planner{
 
 		Init(d, flag, f, ff, value, seq, last, c, dd, z);
 		SPFA(start_x, start_y, goal_x, goal_y, d, flag, f, ff, value, seq, last, c, dd, z);
-		if (!FindAPath(start_x, start_y, goal_x, goal_y, d, ff, last, z)) {
-			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 147] cost:%d goal_x:%d goal_y:%d ", costmap_ptr_->GetCostMap()->GetCost(goal_x, goal_y), goal_x, goal_y);
+		if (!FindAPath(goal_x, goal_y, d, ff, last, z)) {
+			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 147] cost:%d goal_x:%d goal_y:%d start_x:%d start_y:%d", costmap_ptr_->GetCostMap()->GetCost(goal_x, goal_y), goal_x, goal_y, start_x, start_y);
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
 		}
 		ROS_WARN("[spfa_planner.cpp 150]");
-		if (!	Smooth(path, d, z)) {
+		if (!Smooth(path, d, z)) {
 			ROS_WARN("Global planner cannot smooth the valid path [spfa_planner.cpp 152] ");
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Smooth path failedl. ");
 		}
@@ -169,9 +169,9 @@ namespace roborts_global_planner{
 		std::pair<int, int> &dd,
 		std::pair<int, int> z[map_height_max_*map_width_max_]) {
 
-    			c[0].first=c[2].second=1;
-			c[0].second=c[2].first=c[1].second=c[3].first=0;
-    			c[1].first=c[3].second=-1;
+    	c[0].first=c[2].second=1;
+		c[0].second=c[2].first=c[1].second=c[3].first=0;
+    	c[1].first=c[3].second=-1;
 
 		int l=0,r=0;
     	for (int i=0; i<=gridmap_height_+1; i++){
@@ -350,14 +350,12 @@ ROS_WARN("[spfa_planner.cpp 324]");
 				}
 	}*/
 
-	bool SPFAPlanner::FindAPath(const unsigned int &start_x,
-																											const unsigned int &start_y,
-																										const unsigned int &goal_x,
-																									const unsigned int &goal_y,
-																									int &d,
-																									bool ff[map_height_max_][map_width_max_],
-																									std::pair<int, int> last[map_height_max_][map_width_max_],
-																									std::pair<int, int> z[map_height_max_*map_width_max_]) {
+	bool SPFAPlanner::FindAPath(const unsigned int &goal_x,
+			const unsigned int &goal_y,
+			int &d,
+			bool ff[map_height_max_][map_width_max_],
+			std::pair<int, int> last[map_height_max_][map_width_max_],
+			std::pair<int, int> z[map_height_max_*map_width_max_]) {
     	if (ff[goal_x][goal_y]) {
         	d=0;
 					Dfs(goal_x,goal_y, d, last, z);

@@ -55,7 +55,7 @@ namespace roborts_global_planner{
 
 		void Dfs(int x,int y, int &d, std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> z[map_height_max_*map_width_max_]);
 
-		bool FindAPath(const unsigned int &start_x, const unsigned int &start_y, const unsigned int &goal_x, const unsigned int &goal_y, int &d, bool ff[map_height_max_][map_width_max_], std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> z[map_height_max_*map_width_max_]);
+		bool FindAPath(const unsigned int &goal_x, const unsigned int &goal_y, int &d, bool ff[map_height_max_][map_width_max_], std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> z[map_height_max_*map_width_max_]);
 
 		/*std::pair<int,int> SPFAPlanner::operator+(const std::pair<int,int> &y) {
 			std::pair<int,int> sum;
