@@ -127,7 +127,7 @@ namespace roborts_global_planner{
 		cost_ = costmap_ptr_->GetCostMap()->GetCharMap();
 
 		int d;
-	 bool flag[map_height_max_][map_width_max_];
+	 	bool flag[map_height_max_][map_width_max_];
 		bool ff[map_height_max_][map_width_max_];
 		double f[map_height_max_][map_width_max_];
 		double value[map_height_max_][map_width_max_];
@@ -144,7 +144,7 @@ namespace roborts_global_planner{
 		Init(d, flag, f, ff, value, seq, last, c, dd, z);
 		SPFA(start_x, start_y, goal_x, goal_y, d, flag, f, ff, value, seq, last, c, dd, z);
 		if (!FindAPath(start_x, start_y, goal_x, goal_y, d, ff, last, z)) {
-			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 147] ");
+			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 147] cost:%d goal_x:%d goal_y:%d ", costmap_ptr_->GetCostMap()->GetCost(goal_x, goal_y), goal_x, goal_y);
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
 		}
 		ROS_WARN("[spfa_planner.cpp 150]");
@@ -159,18 +159,19 @@ namespace roborts_global_planner{
 
 
 	void SPFAPlanner::Init(int &d,
-	bool flag[map_height_max_][map_width_max_],
-	double f[map_height_max_][map_width_max_],
-	bool ff[map_height_max_][map_width_max_],
-	double value[map_height_max_][map_width_max_],
-	std::pair<int, int> seq[map_height_max_*map_width_max_*5],
-	std::pair<int, int> last[map_height_max_][map_width_max_],
-	std::pair<int, int> c[4],
-	std::pair<int, int> &dd,
-	std::pair<int, int> z[map_height_max_*map_width_max_]) {
-    	c[0].first=c[2].second=1;
+		bool flag[map_height_max_][map_width_max_],
+		double f[map_height_max_][map_width_max_],
+		bool ff[map_height_max_][map_width_max_],
+		double value[map_height_max_][map_width_max_],
+		std::pair<int, int> seq[map_height_max_*map_width_max_*5],
+		std::pair<int, int> last[map_height_max_][map_width_max_],
+		std::pair<int, int> c[4],
+		std::pair<int, int> &dd,
+		std::pair<int, int> z[map_height_max_*map_width_max_]) {
+
+    			c[0].first=c[2].second=1;
 			c[0].second=c[2].first=c[1].second=c[3].first=0;
-    	c[1].first=c[3].second=-1;
+    			c[1].first=c[3].second=-1;
 
 		int l=0,r=0;
     	for (int i=0; i<=gridmap_height_+1; i++){
@@ -191,14 +192,13 @@ namespace roborts_global_planner{
             	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_)continue;
             	if (costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second)< roborts_costmap::LETHAL_OBSTACLE &&!flag[dd.first][dd.second]){
                 	value[dd.first][dd.second]=value[seq[l].first][seq[l].second]+1;
-							//		ROS_WARN("dd:%d,%d,value_dd:%lf",dd.first,dd.second,value[dd.first][dd.second])	;
+							//ROS_WARN("dd:%d,%d,value_dd:%lf",dd.first,dd.second,value[dd.first][dd.second])	;
                 	seq[++r]=dd;
 					flag[dd.first][dd.second]=1;
             	}
         	}
     	}ROS_WARN("r_init:%d",r)	;
 
-    	for (int i=1; i<=gridmap_height_; i++){
     		for (int j=1; j<=gridmap_width_; j++) {
     	    	value[i][j]=1+distance_cost_parameter_/value[i][j];
 			}
@@ -207,20 +207,20 @@ namespace roborts_global_planner{
 	}
 
 
-    void SPFAPlanner::SPFA(const unsigned int &start_x,
-																												const unsigned int &start_y,
-																											const unsigned int &goal_x,
-																										const unsigned int &goal_y,
-																										int &d,
-																										bool flag[map_height_max_][map_width_max_],
-																										double f[map_height_max_][map_width_max_],
-																										bool ff[map_height_max_][map_width_max_],
-																										double value[map_height_max_][map_width_max_],
-																										std::pair<int, int> seq[map_height_max_*map_width_max_*5],
-																										std::pair<int, int> last[map_height_max_][map_width_max_],
-																										std::pair<int, int> c[4],
-																										std::pair<int, int> &dd,
-																										std::pair<int, int> z[map_height_max_*map_width_max_]) {
+    void SPFAPlanner::SPFA(const unsigned int &start_x, 
+		const unsigned int &start_y,
+		const unsigned int &goal_x,
+		const unsigned int &goal_y,
+		int &d,
+		bool flag[map_height_max_][map_width_max_],
+		double f[map_height_max_][map_width_max_],
+		bool ff[map_height_max_][map_width_max_],
+		double value[map_height_max_][map_width_max_],
+		std::pair<int, int> seq[map_height_max_*map_width_max_*5],
+		std::pair<int, int> last[map_height_max_][map_width_max_],
+		std::pair<int, int> c[4],
+		std::pair<int, int> &dd,
+		std::pair<int, int> z[map_height_max_*map_width_max_]) {
 		int l=0,r=1;
 		seq[r] = std::make_pair(start_x, start_y);
     	for (int i=1; i<=gridmap_height_; i++) {
