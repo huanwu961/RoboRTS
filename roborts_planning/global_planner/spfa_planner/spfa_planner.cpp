@@ -199,8 +199,9 @@ namespace roborts_global_planner{
         	}
     	}ROS_WARN("r_init:%d",r)	;
 
-    		for (int j=1; j<=gridmap_width_; j++) {
-    	    	value[i][j]=1+distance_cost_parameter_/value[i][j];
+    	for (int i=1; i<=gridmap_height_; i++){
+    			for (int j=1; j<=gridmap_width_; j++) {
+    	    		value[i][j]=1+distance_cost_parameter_/value[i][j];
 			}
 		}
 
@@ -284,6 +285,7 @@ namespace roborts_global_planner{
 		int yy[map_height_max_*map_width_max_];
 		int now_x=z[1].first,now_y=z[1].second;
 		int dd=0;
+		
 	//ROS_WARN("[spfa_planner.cpp 272]");
     	for (int i=2;i<=d;i++){
         	if (z[i].first-z[i-1].first){
