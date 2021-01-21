@@ -40,18 +40,18 @@ namespace roborts_global_planner{
   		bool goal_valid = false;
 
   		if (!costmap_ptr_->GetCostMap()->World2Map(start.pose.position.x,
-                                             																														start.pose.position.y,
-                                             																														start_x,
-                                             																														start_y)) {
+                                             	start.pose.position.y,
+                                             	start_x,
+                                             	start_y)) {
     		ROS_WARN("Failed to transform start pose from map frame to costmap frame");
     		return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR,
                      "Start pose can't be transformed to costmap frame.");
   		}
 
   		if (!costmap_ptr_->GetCostMap()->World2Map(goal.pose.position.x,
-                                             																														goal.pose.position.y,
-                                             																														goal_x,
-                                             																														goal_y)) {
+                                             	goal.pose.position.y,
+                                             	goal_x,
+                                             	goal_y)) {
     		ROS_WARN("Failed to transform goal pose from map frame to costmap frame");
     		return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR,
                      "Goal pose can't be transformed to costmap frame.");
@@ -134,15 +134,14 @@ namespace roborts_global_planner{
 		std::pair<int,int> seq[map_height_max_*map_width_max_*5];
 		std::pair<int,int> last[map_height_max_][map_width_max_];
 		std::pair<int,int> c[4];
-		std::pair<int,int> dd;
 		std::pair<int,int> z[map_height_max_*map_width_max_];
 
 		unsigned int start_x, start_y, goal_x, goal_y;
 		costmap_ptr_->GetCostMap()->Index2Cells(start_index, start_x, start_y);
 		costmap_ptr_->GetCostMap()->Index2Cells(goal_index, goal_x, goal_y);
 
-		Init(d, flag, f, ff, value, seq, last, c, dd, z);
-		SPFA(start_x, start_y, goal_x, goal_y, d, flag, f, ff, value, seq, last, c, dd, z);
+		Init(d, flag, f, ff, value, seq, last, c);
+		SPFA(start_x, start_y, goal_x, goal_y, d, flag, f, ff, value, seq, last, c);
 		if (!FindAPath(goal_x, goal_y, d, ff, last, z)) {
 			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 147] cost:%d goal_x:%d goal_y:%d start_x:%d start_y:%d", costmap_ptr_->GetCostMap()->GetCost(goal_x, goal_y), goal_x, goal_y, start_x, start_y);
 			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
@@ -165,19 +164,20 @@ namespace roborts_global_planner{
 		double value[map_height_max_][map_width_max_],
 		std::pair<int, int> seq[map_height_max_*map_width_max_*5],
 		std::pair<int, int> last[map_height_max_][map_width_max_],
-		std::pair<int, int> c[4],
-		std::pair<int, int> &dd,
-		std::pair<int, int> z[map_height_max_*map_width_max_]) {
+		std::pair<int, int> c[4]) {
 
-    	c[0].first=c[2].second=1;
-		c[0].second=c[2].first=c[1].second=c[3].first=0;
-    	c[1].first=c[3].second=-1;
+    	c[0]=std::make_pair(1,0);
+    	c[1]=std::make_pair(-1,0);
+    	c[2]=std::make_pair(0,1);
+    	c[3]=std::make_pair(0,-1);
 
 		int l=0,r=0;
+		std::pair<int, int> dd;
+		
     	for (int i=0; i<=gridmap_height_+1; i++){
     		for (int j=0; j<=gridmap_width_+1; j++){
             	value[i][j]=flag[i][j]=0;
-            	if (costmap_ptr_->GetCostMap()->GetCost(j,i)>= roborts_costmap::LETHAL_OBSTACLE){
+            	if (costmap_ptr_->GetCostMap()->GetCost(j,i)>= inaccessible_cost_){
                 	flag[i][j]=1;
                 	seq[++r]= std::make_pair(i,j);
             	}
@@ -188,16 +188,16 @@ namespace roborts_global_planner{
         	l++;//ROS_WARN("l_init:%d",l)	;
 			for (int i=0;i<4;i++){
             	dd.first = seq[l].first+c[i].first;
-							dd.second =seq[l].second +c[i].second;
+				dd.second =seq[l].second +c[i].second;
             	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_)continue;
-            	if (costmap_ptr_->GetCostMap()->GetCost(dd.second, dd.first)< roborts_costmap::LETHAL_OBSTACLE &&!flag[dd.first][dd.second]){
+            	if (costmap_ptr_->GetCostMap()->GetCost(dd.second-1, dd.first-1)< inaccessible_cost_ &&!flag[dd.first][dd.second]){
                 	value[dd.first][dd.second]=value[seq[l].first][seq[l].second]+1;
 							//ROS_WARN("dd:%d,%d,value_dd:%lf",dd.first,dd.second,value[dd.first][dd.second])	;
                 	seq[++r]=dd;
 					flag[dd.first][dd.second]=1;
             	}
         	}
-    	}ROS_WARN("r_init:%d",r)	;
+    	}
 
     	for (int i=1; i<=gridmap_height_; i++){
     			for (int j=1; j<=gridmap_width_; j++) {
@@ -219,10 +219,10 @@ namespace roborts_global_planner{
 		double value[map_height_max_][map_width_max_],
 		std::pair<int, int> seq[map_height_max_*map_width_max_*5],
 		std::pair<int, int> last[map_height_max_][map_width_max_],
-		std::pair<int, int> c[4],
-		std::pair<int, int> &dd,
-		std::pair<int, int> z[map_height_max_*map_width_max_]) {
+		std::pair<int, int> c[4]) {
+			
 		int l=0,r=1;
+		std::pair<int,int> dd;
 		seq[r] = std::make_pair(start_x, start_y);
     	for (int i=1; i<=gridmap_height_; i++) {
         	for (int j=1; j<=gridmap_width_; j++) {
@@ -230,43 +230,38 @@ namespace roborts_global_planner{
 			}
 		}
 
-			for (int i=0; i<map_height_max_; i++) {
-				for (int j=0; j<map_width_max_; j++) {
-					flag[i][j] = 0;
-					ff[i][j]= 0;
-					last[i][j] = std::make_pair(0, 0);
-				}
+		for (int i=0; i<map_height_max_; i++) {
+			for (int j=0; j<map_width_max_; j++) {
+				flag[i][j] = 0;
+				ff[i][j]= 0;
+				last[i][j] = std::make_pair(0, 0);
 			}
+		} //需要标记到最大表还是地图大小即可？和上面的循环合并？ 
+		
     	f[start_x][start_y]=0;
+    	ff[start_x][start_y]=1;
 
-    	while (l!=r) {
-        	l++;//ROS_WARN("L:%d,seq:%d,%d",l,seq[l].first,seq[l].second);
-					if (l==map_height_max_*map_width_max_*5-4)l=0;
-				//	ROS_WARN("value:%.2lf",value[seq[l].first][seq[l].second]);
-				//	ROS_WARN("f:%.2lf",f[seq[l].first][seq[l].second]);
+    	while (l<r) {
+        	l++;
+			if (l==map_height_max_*map_width_max_*5-4) l=0;
 			for (int i=0;i<4;i++) {
             	dd.first = seq[l].first +c[i].first;
-							dd.second =seq[l].second + c[i].second;
-            	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_)continue;
-							//ROS_WARN("freespace:%d , cost:%d", roborts_costmap::, costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second));
-            	if (costmap_ptr_->GetCostMap()->GetCost(dd.first, dd.second)< roborts_costmap::INSCRIBED_INFLATED_OBSTACLE &&f[dd.first][dd.second]-eps>
-                                             f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second]){
-									//ROS_WARN("L:%d,dd:%d,%d;before:%.2lf;after:%.2lf",l,dd.first,dd.second,f[dd.first][dd.second]+eps,f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second]);
-									//ROS_WARN("flag:%d",flag[dd.first][dd.second])	;
+				dd.second =seq[l].second+c[i].second;
+            	if (dd.first<=0||dd.second<=0||dd.first>gridmap_height_||dd.second>gridmap_width_) continue; //出界 继续搜索其他方向 
+            	if (costmap_ptr_->GetCostMap()->GetCost(dd.second-1, dd.first-1)< inaccessible_cost_ && f[dd.first][dd.second]-eps>
+                                             f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second]){ //不是障碍物 & 通过当前路径代价更小 
                 	f[dd.first][dd.second]=f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second];
                 	last[dd.first][dd.second]=seq[l];
-								//	if (!ff[dd.first][dd.second])ROS_WARN("ff1:%d,%d",dd.first,dd.second);
                 	ff[dd.first][dd.second]=1;
-								//	if (!ff[dd.first][dd.second])ROS_WARN("ff2:%d,%d",dd.first,dd.second);
-                	if (!flag[dd.first][dd.second]) {
-										r++;
-										if (r==map_height_max_*map_width_max_*5-4)r=0;
+                	if (!flag[dd.first][dd.second]) { //点dd从栈顶入栈（如果不在栈中） 
+						r++;
+						if (r==map_height_max_*map_width_max_*5-4)r=0;
                     	seq[r]=dd;
 						flag[dd.first][dd.second]=1;
                 	}
             	}
         	}
-			flag[seq[l].first][seq[l].second]=0;
+			flag[seq[l].first][seq[l].second]=2; //栈底出栈 
     	}
 
 	}
@@ -328,7 +323,6 @@ namespace roborts_global_planner{
         	//zz[++top_zz]=make_pair(now_x,now_y);
     	}
 		for (int i=1;i<=dd;i++)xx[i]+=xx[i-1],yy[i]+=yy[i-1];
-ROS_WARN("[spfa_planner.cpp 324]");
 		return true;
 	}
 
@@ -356,10 +350,11 @@ ROS_WARN("[spfa_planner.cpp 324]");
 			bool ff[map_height_max_][map_width_max_],
 			std::pair<int, int> last[map_height_max_][map_width_max_],
 			std::pair<int, int> z[map_height_max_*map_width_max_]) {
+				
     	if (ff[goal_x][goal_y]) {
         	d=0;
-					Dfs(goal_x,goal_y, d, last, z);
-					return true;
+			Dfs(goal_x,goal_y, d, last, z);
+			return true;
     	}
 		return false;
     //  for (int i=1;i<=n;i++){

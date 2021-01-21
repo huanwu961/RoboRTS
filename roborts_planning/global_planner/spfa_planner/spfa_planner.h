@@ -47,13 +47,13 @@ namespace roborts_global_planner{
   		roborts_common::ErrorInfo SearchPath(const int &start_index,
                                      const int &goal_index,
                                      std::vector<geometry_msgs::PoseStamped> &path);
-	    	void Init(int &d, bool flag[map_height_max_][map_width_max_], double f[map_height_max_][map_width_max_], bool ff[map_height_max_][map_width_max_], double value[map_height_max_][map_width_max_], std::pair<int, int> seq[map_height_max_*map_width_max_*5], std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> c[4], std::pair<int, int> &dd, std::pair<int, int> z[map_height_max_*map_width_max_]);
+	    void Init(int &d, bool flag[map_height_max_][map_width_max_], double f[map_height_max_][map_width_max_], bool ff[map_height_max_][map_width_max_], double value[map_height_max_][map_width_max_], std::pair<int, int> seq[map_height_max_*map_width_max_*5], std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> c[4]);
 
-		void SPFA(const unsigned int &start_x, const unsigned int &start_y, const unsigned int &goal_x, const unsigned int &goal_y, int &d, bool flag[map_height_max_][map_width_max_], double f[map_height_max_][map_width_max_], bool ff[map_height_max_][map_width_max_], double value[map_height_max_][map_width_max_], std::pair<int, int> seq[map_height_max_*map_width_max_*5], std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> c[4], std::pair<int, int> &dd, std::pair<int, int> z[map_height_max_*map_width_max_]);
+		void SPFA(const unsigned int &start_x, const unsigned int &start_y, const unsigned int &goal_x, const unsigned int &goal_y, int &d, bool flag[map_height_max_][map_width_max_], double f[map_height_max_][map_width_max_], bool ff[map_height_max_][map_width_max_], double value[map_height_max_][map_width_max_], std::pair<int, int> seq[map_height_max_*map_width_max_*5], std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> c[4]);
 
 	 	bool Smooth(std::vector<geometry_msgs::PoseStamped> &path, int &d, std::pair<int, int> z[map_height_max_*map_width_max_]);
 
-		void Dfs(int x,int y, int &d, std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> z[map_height_max_*map_width_max_]);
+		void Dfs(int x, int y, int &d, std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> z[map_height_max_*map_width_max_]);
 
 		bool FindAPath(const unsigned int &goal_x, const unsigned int &goal_y, int &d, bool ff[map_height_max_][map_width_max_], std::pair<int, int> last[map_height_max_][map_width_max_], std::pair<int, int> z[map_height_max_*map_width_max_]);
 
