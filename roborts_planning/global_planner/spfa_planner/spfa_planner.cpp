@@ -23,7 +23,7 @@ namespace roborts_global_planner{
   		heuristic_factor_ = spfa_planner_config.heuristic_factor();
   		inaccessible_cost_ = spfa_planner_config.inaccessible_cost();
   		goal_search_tolerance_ = spfa_planner_config.goal_search_tolerance()/costmap_ptr->GetCostMap()->GetResolution();
-		distance_cost_parameter_ = spfa_planner_config.distance_cost_parameter();
+		//distance_cost_parameter_ = spfa_planner_config.distance_cost_parameter();
     }
 
     SPFAPlanner::~SPFAPlanner() {
@@ -117,258 +117,152 @@ namespace roborts_global_planner{
 	}
 
 	ErrorInfo SPFAPlanner::SearchPath(const int &start_index,
-                                   		const int &goal_index,
-                                   		std::vector<geometry_msgs::PoseStamped> &path) {
+                                       const int &goal_index,
+                                       std::vector<geometry_msgs::PoseStamped> &path) {
 
-		//get_map
-  		gridmap_width_ = costmap_ptr_->GetCostMap()->GetSizeXCell();
-  		gridmap_height_ = costmap_ptr_->GetCostMap()->GetSizeYCell();
-  		ROS_WARN("Map size: %d * %d", gridmap_width_, gridmap_height_);
-		ROS_INFO("Search in a map %d", gridmap_width_*gridmap_height_);
-		cost_ = costmap_ptr_->GetCostMap()->GetCharMap();
+        dis_.clear();
+        parent_.clear();
+        state_.clear();
+        gridmap_width_ = costmap_ptr_->GetCostMap()->GetSizeXCell();
+        gridmap_height_ = costmap_ptr_->GetCostMap()->GetSizeYCell();
+        ROS_INFO("Search in a map %d", gridmap_width_*gridmap_height_);
+        cost_ = costmap_ptr_->GetCostMap()->GetCharMap();
+        dis_.resize(gridmap_height_ * gridmap_width_, std::numeric_limits<int>::max());
+        parent_.resize(gridmap_height_ * gridmap_width_, std::numeric_limits<int>::max());
+        state_.resize(gridmap_height_ * gridmap_width_, SearchState::NOT_HANDLED);
 
-		int d;
-	 	bool flag[map_height_max_][map_width_max_];
-		bool ff[map_height_max_][map_width_max_];
-		double f[map_height_max_][map_width_max_];
-		double value[map_height_max_][map_width_max_];
-		std::pair<int,int> last[map_height_max_][map_width_max_];
-		std::pair<int,int> c[4];
-		std::pair<int,int> z[map_height_max_*map_width_max_];
+        std::priority_queue<int, std::vector<int>, Compare> openlist;
+        dis_.at(start_index) = 0;
+        openlist.push(start_index);
 
-		unsigned int start_x, start_y, goal_x, goal_y;
-		costmap_ptr_->GetCostMap()->Index2Cells(start_index, start_x, start_y);
-		costmap_ptr_->GetCostMap()->Index2Cells(goal_index, goal_x, goal_y);
+        std::vector<int> neighbors_index;
+        int current_index, move_cost, count = 0;
 
-		Init(d, flag, f, ff, value, last, c);
-		SPFA(start_x, start_y, goal_x, goal_y, d, flag, f, ff, value, last, c);
-		if (!FindAPath(goal_x, goal_y, d, ff, last, z)) {
-			ROS_WARN("Global planner cannot search the valid path [spfa_planner.cpp 147] cost:%d goal_x:%d goal_y:%d start_x:%d start_y:%d", costmap_ptr_->GetCostMap()->GetCost(goal_x, goal_y), goal_x, goal_y, start_x, start_y);
-			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Cannot find a path to current goal. ");
-		}
-		ROS_WARN("[spfa_planner.cpp 150]");
-		if (!Smooth(path, d, z)) {
-			ROS_WARN("Global planner cannot smooth the valid path [spfa_planner.cpp 152] ");
-			return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR,  "Smooth path failedl. ");
-		}
+        while ((!openlist.empty()) && (state_.at(goal_index) != SearchState::CLOSED)) {
+            current_index = openlist.top();
+            openlist.pop();
+            state_.at(current_index) = SearchState::CLOSED;
 
-  		return ErrorInfo::OK();
+            if (current_index == goal_index) {
+                ROS_INFO("Search takes %d cycle counts", count);
+                break;
+            }
 
-	}
+            GetEightNeighbors(current_index, neighbors_index);
 
+            for (auto neighbor_index : neighbors_index) {
 
-	void SPFAPlanner::Init(int &d,
-		bool flag[map_height_max_][map_width_max_],
-		double f[map_height_max_][map_width_max_],
-		bool ff[map_height_max_][map_width_max_],
-		double value[map_height_max_][map_width_max_],
-		std::pair<int, int> last[map_height_max_][map_width_max_],
-		std::pair<int, int> c[4]) {
+                if (neighbor_index < 0 ||
+                    neighbor_index >= gridmap_height_ * gridmap_width_) {
+                    continue;
+                }
 
-    	c[0]=std::make_pair(1,0);
-    	c[1]=std::make_pair(-1,0);
-    	c[2]=std::make_pair(0,1);
-    	c[3]=std::make_pair(0,-1);
+                if (cost_[neighbor_index] >= inaccessible_cost_ ||
+                    state_.at(neighbor_index) == SearchState::CLOSED) {
+                    continue;
+                }
 
-		int l=0,r=0;
-		std::pair<int, int> dd;
-		std::pair<int, int> seq[map_height_max_*map_width_max_*5];	
-    	for (int i=1; i<=gridmap_height_; i++){
-    		for (int j=1; j<=gridmap_width_; j++){
-            	value[i][j]=eps;
-		flag[i][j]=0;
-            	if (costmap_ptr_->GetCostMap()->GetCost(j, i)>= inaccessible_cost_){
-                	flag[i][j]=1;
-			seq[++r]= std::make_pair(i,j);
-            	}
-        	}
-		}
+                GetMoveCost(current_index, neighbor_index, move_cost);
 
-    	while (l<r){
-        	l++;//ROS_WARN("l_init:%d",l)	;
-			for (int i=0;i<4;i++){
-            	dd.first = seq[l].first+c[i].first;
-				dd.second =seq[l].second +c[i].second;
-            	if (dd.first<=0||dd.second<=0||dd.first>gridmap_width_||dd.second>gridmap_height_)continue;
-            	if (costmap_ptr_->GetCostMap()->GetCost(dd.second, dd.first)< inaccessible_cost_ &&!flag[dd.first][dd.second]){
-                	value[dd.first][dd.second]=value[seq[l].first][seq[l].second]+1;
-			//ROS_WARN("dd:%d,%d,value_dd:%lf",dd.first,dd.second,value[dd.first][dd.second])	;
-                	seq[++r]=dd;
-					flag[dd.first][dd.second]=1;
-            	}
-        	flag[seq[l].first][seq[l].second] = 0;
-			}
-    	}
+                if (dis_.at(neighbor_index) > dis_.at(current_index) + move_cost + cost_[neighbor_index]) {
 
-    	for (int i=1; i<=gridmap_height_; i++){
-    			for (int j=1; j<=gridmap_width_; j++) {
-    	    		value[i][j]=1+distance_cost_parameter_/value[i][j];
-			}
+                    dis_.at(neighbor_index) = dis_.at(current_index) + move_cost + cost_[neighbor_index];
+                    parent_.at(neighbor_index) = current_index;
+
+                    if (state_.at(neighbor_index) == SearchState::NOT_HANDLED) {
+                        openlist.push(neighbor_index);
+                        state_.at(neighbor_index) = SearchState::OPEN;
+                    }
+                }
+            }
+            count++;
+        }
+
+        if (state_.at(goal_index) != SearchState::CLOSED) {
+            ROS_WARN("Global planner can't search the valid path!");
+            return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR, "Valid global path not found.");
+        }
+		else {
+			current_index = goal_index;
 		}
 
-	}
+        unsigned int iter_index = current_index, iter_x, iter_y;
 
+        geometry_msgs::PoseStamped iter_pos;
+        iter_pos.pose.orientation.w = 1;
+        iter_pos.header.frame_id = "map";
+        path.clear();
+        costmap_ptr_->GetCostMap()->Index2Cells(iter_index, iter_x, iter_y);
+        costmap_ptr_->GetCostMap()->Map2World(iter_x, iter_y, iter_pos.pose.position.x, iter_pos.pose.position.y);
+        path.push_back(iter_pos);
 
-    void SPFAPlanner::SPFA(const unsigned int &start_x, 
-		const unsigned int &start_y,
-		const unsigned int &goal_x,
-		const unsigned int &goal_y,
-		int &d,
-		bool flag[map_height_max_][map_width_max_],
-		double f[map_height_max_][map_width_max_],
-		bool ff[map_height_max_][map_width_max_],
-		double value[map_height_max_][map_width_max_],
-		std::pair<int, int> last[map_height_max_][map_width_max_],
-		std::pair<int, int> c[4]) {
-			
-		int l=0,r=1;
-		std::pair<int,int> seq[map_height_max_*map_width_max_*5];
-		std::pair<int,int> dd;
-		seq[r] = std::make_pair(start_x, start_y);
-    	for (int i=1; i<=gridmap_height_; i++) {
-        	for (int j=1; j<=gridmap_width_; j++) {
-        		f[i][j]=1e15;
-			}
-		}
+        while (iter_index != start_index) {
+            iter_index = parent_.at(iter_index);
+//    if(cost_[iter_index]>= inaccessible_cost_){
+//      LOG_INFO<<"Cost changes through planning for"<< static_cast<unsigned int>(cost_[iter_index]);
+//    }
+            costmap_ptr_->GetCostMap()->Index2Cells(iter_index, iter_x, iter_y);
+            costmap_ptr_->GetCostMap()->Map2World(iter_x, iter_y, iter_pos.pose.position.x, iter_pos.pose.position.y);
+            path.push_back(iter_pos);
+        }
 
-		for (int i=0; i<map_height_max_; i++) {
-			for (int j=0; j<map_width_max_; j++) {
-				flag[i][j] = 0;
-				ff[i][j]= 0;
-				last[i][j] = std::make_pair(0, 0);
-			}
-		} //需要标记到最大表还是地图大小即可？和上面的循环合并？ 
-		
-    	f[start_x][start_y]=0;
-    	ff[start_x][start_y]=1;
+        std::reverse(path.begin(),path.end());
 
-    	while (l<r) {
-        	l++;
-			if (l==map_height_max_*map_width_max_*5-4) l=1;
-			bool moved = true;
-			for (int i=0;i<4;i++) {
-            	dd.first = seq[l].first +c[i].first;
-		dd.second =seq[l].second+c[i].second;
-            	//ROS_WARN("dd:%d %d, dd_value:%lf",dd.second, dd.first, value[dd.first][dd.second] );
-		if (dd.first<=0||dd.second<=0||dd.first>gridmap_width_||dd.second>gridmap_height_) continue; //出界 继续搜索其他方向 
-            	//if (costmap_ptr_->GetCostMap()->GetCost(dd.second-1, dd.first-1)<inaccessible_cost_ && flag[seq[l].first][seq[l].second == 0]) {
-		if (costmap_ptr_->GetCostMap()->GetCost(dd.second, dd.first)< inaccessible_cost_ && f[dd.first][dd.second]>
-                                           f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second]){ //不是障碍物 & 通过当前路径代价更小 
-			ROS_WARN("DD:%d %d, dd_value:%lf", dd.second, dd.first, value[dd.first][dd.second]);
-			f[dd.first][dd.second]=f[seq[l].first][seq[l].second]+value[seq[l].first][seq[l].second];
-                	last[dd.first][dd.second]=seq[l];
-                	ff[dd.first][dd.second]=1;
-                	if (!flag[dd.first][dd.second]) { //点dd从栈顶入栈（如果不在栈中） 
-						r++;
-						if (r==map_height_max_*map_width_max_*5-4)r=1;
-                    		seq[r]=dd;
-						flag[dd.first][dd.second]=1;
-						moved = true;
-                	}
-            	}
-        	}
-			if (!moved) ROS_WARN("the point is not moved? %d", moved);
-			flag[seq[l].first][seq[l].second]=0; //栈底出栈 
-    	}
-			//ROS_WARN("l:%d r:%d", l, r);
-	}
+        return ErrorInfo(ErrorCode::OK);
 
+    }
 
-	bool SPFAPlanner::Smooth(std::vector<geometry_msgs::PoseStamped> &path,
-		int &d,
-		std::pair<int, int> z[map_height_max_*map_width_max_]) {
+    ErrorInfo SPFAPlanner::GetMoveCost(const int &current_index,
+                                        const int &neighbor_index,
+                                        int &move_cost) const {
+        if (abs(neighbor_index - current_index) == 1 ||
+            abs(neighbor_index - current_index) == gridmap_width_) {
+            move_cost = 10;
+        } else if (abs(neighbor_index - current_index) == (gridmap_width_ + 1) ||
+                   abs(neighbor_index - current_index) == (gridmap_width_ - 1)) {
+            move_cost = 14;
+        } else {
+            return ErrorInfo(ErrorCode::GP_MOVE_COST_ERROR,
+                             "Move cost can't be calculated cause current neighbor index is not accessible");
+        }
+        return ErrorInfo(ErrorCode::OK);
+    }
 
-		geometry_msgs::PoseStamped iter_pos;
-		iter_pos.pose.orientation.w = 1;
-		iter_pos.header.frame_id = "map";
-		path.clear();
-		int x=0,y=0;
-		int xx[map_height_max_*map_width_max_];
-		int yy[map_height_max_*map_width_max_];
-		int now_x=z[1].first,now_y=z[1].second;
-		int dd=0;
-		
-	//ROS_WARN("[spfa_planner.cpp 272]");
-    	for (int i=2;i<=d;i++){
-        	if (z[i].first-z[i-1].first){
-            	x+=z[i].first-z[i-1].first;
-            	if (y){
-                	xx[++dd]=x;
-					yy[dd]=y;
-					x=0;
-					y=0;
-                	//cout<<xx[dd]<<' '<<yy[dd]<<endl;
-            	}
-        	}
-			if (z[i].second-z[i-1].second){
-            	y+=z[i].second-z[i-1].second;
-            	if (x){
-                	xx[++dd]=x;
-					yy[dd]=y;
-					x=y=0;
-                	//cout<<xx[dd]<<' '<<yy[dd]<<endl;
-            	}
-        	}
-    	}
+    void SPFAPlanner::GetManhattanDistance(const int &index1, const int &index2, int &manhattan_distance) const {
+        manhattan_distance = heuristic_factor_* 10 * (abs(static_cast<int>(index1 / gridmap_width_ - index2 / gridmap_width_)) +
+                                                      abs(static_cast<int>((index1 % gridmap_width_ - index2 % gridmap_width_))));
+    }
 
-		if (x!=0 or y!=0){
-        	xx[++dd]=x;yy[dd]=y;x=y=0;
-    	}
-    	xx[dd+1]=yy[dd+1]=1e9;
-			ROS_WARN("[spfa_planner.cpp 299],%d,%d",dd,d);
-    	for (int i=1;i<=dd;){
-        	// cout<<now_x<<' '<<now_y<<endl;
-        	int j=i,dx=0,dy=0;
-					ROS_WARN("[spfa_planner.cpp 303]");
-        	for (;xx[j]==xx[i]&&yy[j]==yy[i];j++) dx+=xx[j],dy+=yy[j];
-        	now_x+=dx;now_y+=dy;
-        	//write(now_x);putchar(' ');write(now_y);putchar(' ');puts("This is new route.");
-        	i=j;
-					ROS_WARN("[spfa_planner.cpp 306]");
-    		costmap_ptr_->GetCostMap()->Map2World(now_x, now_y, iter_pos.pose.position.x, iter_pos.pose.position.y);
-    		path.push_back(iter_pos);
-        	//zz[++top_zz]=make_pair(now_x,now_y);
-    	}
-		for (int i=1;i<=dd;i++)xx[i]+=xx[i-1],yy[i]+=yy[i-1];
-		return true;
-	}
-
-
-	void SPFAPlanner::Dfs(int x,int y,int &d,
-		std::pair<int, int> last[map_height_max_][map_width_max_],
-		std::pair<int, int> z[map_height_max_*map_width_max_]) {//to get the path
-    	if (last[x][y].first!=0)
-        	Dfs(last[x][y].first,last[x][y].second, d, last, z);
-    	z[++d]= std::make_pair(x,y);//ROS_WARN("x,y:%d,%d",x, y);
-	}
-
-
-	/*void SPFAPlanner::SetValue(int upper, int lower, int left, int right, double new_value) {
-    	for (int i=upper; i<=lower; i++) {
-	        for (int j=left; j<=right; j++) {
-						value[i][j]=new_value;
-					}
-				}
-	}*/
-
-	bool SPFAPlanner::FindAPath(const unsigned int &goal_x,
-			const unsigned int &goal_y,
-			int &d,
-			bool ff[map_height_max_][map_width_max_],
-			std::pair<int, int> last[map_height_max_][map_width_max_],
-			std::pair<int, int> z[map_height_max_*map_width_max_]) {
-				
-    	if (ff[goal_x][goal_y]) {
-        	
-		d=0;
-			Dfs(goal_x,goal_y, d, last, z);
-			return true;
-    	}
-	ROS_WARN("ff goal: %d\n size: %d %d", ff[goal_x][goal_y],gridmap_width_, gridmap_height_);
-		return false;
-    //  for (int i=1;i<=n;i++){
-    //     for (int j=1;j<=m;j++)write(f[i][j]),putchar(' ');
-    //     puts("");
-	}
+    void SPFAPlanner::GetEightNeighbors(const int &current_index, std::vector<int> &neighbors_index) const {
+        neighbors_index.clear();
+        if(current_index - gridmap_width_ >= 0){
+            neighbors_index.push_back(current_index - gridmap_width_);       //up
+        }
+        if(current_index - gridmap_width_ - 1 >= 0 && (current_index - gridmap_width_ - 1 + 1) % gridmap_width_!= 0){
+            neighbors_index.push_back(current_index - gridmap_width_ - 1); //left_up
+        }
+        if(current_index - 1 >= 0 && (current_index - 1 + 1) % gridmap_width_!= 0){
+            neighbors_index.push_back(current_index - 1);        //left
+        }
+        if(current_index + gridmap_width_ - 1 < gridmap_width_* gridmap_height_
+           && (current_index + gridmap_width_ - 1 + 1) % gridmap_width_!= 0){
+            neighbors_index.push_back(current_index + gridmap_width_ - 1); //left_down
+        }
+        if(current_index + gridmap_width_ < gridmap_width_* gridmap_height_){
+            neighbors_index.push_back(current_index + gridmap_width_);     //down
+        }
+        if(current_index + gridmap_width_ + 1 < gridmap_width_* gridmap_height_
+           && (current_index + gridmap_width_ + 1 ) % gridmap_width_!= 0){
+            neighbors_index.push_back(current_index + gridmap_width_ + 1); //right_down
+        }
+        if(current_index  + 1 < gridmap_width_* gridmap_height_
+           && (current_index  + 1 ) % gridmap_width_!= 0) {
+            neighbors_index.push_back(current_index + 1);                   //right
+        }
+        if(current_index - gridmap_width_ + 1 >= 0
+           && (current_index - gridmap_width_ + 1 ) % gridmap_width_!= 0) {
+            neighbors_index.push_back(current_index - gridmap_width_ + 1); //right_up
+        }
+    }
 
 }
