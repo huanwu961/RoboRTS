@@ -23,6 +23,7 @@ namespace roborts_global_planner{
   		heuristic_factor_ = spfa_planner_config.heuristic_factor();
   		inaccessible_cost_ = spfa_planner_config.inaccessible_cost();
   		goal_search_tolerance_ = spfa_planner_config.goal_search_tolerance()/costmap_ptr->GetCostMap()->GetResolution();
+                max_queue_time_ = spfa_planner_config.max_queue_time();
 		//distance_cost_parameter_ = spfa_planner_config.distance_cost_parameter();
     }
 
@@ -121,6 +122,7 @@ namespace roborts_global_planner{
                                        std::vector<geometry_msgs::PoseStamped> &path) {
 
         dis_.clear();
+        queue_time_.clear();
         parent_.clear();
         state_.clear();
         gridmap_width_ = costmap_ptr_->GetCostMap()->GetSizeXCell();
@@ -128,20 +130,30 @@ namespace roborts_global_planner{
         ROS_INFO("Search in a map %d", gridmap_width_*gridmap_height_);
         cost_ = costmap_ptr_->GetCostMap()->GetCharMap();
         dis_.resize(gridmap_height_ * gridmap_width_, std::numeric_limits<int>::max());
+        queue_time_.resize(gridmap_height_ * gridmap_width_, 0);
         parent_.resize(gridmap_height_ * gridmap_width_, std::numeric_limits<int>::max());
         state_.resize(gridmap_height_ * gridmap_width_, SearchState::NOT_HANDLED);
 
+        ROS_WARN("max_queue_time: %d", max_queue_time_);
         std::priority_queue<int, std::vector<int>, Compare> openlist;
         dis_.at(start_index) = 0;
         openlist.push(start_index);
+        queue_time_.at(start_index) = queue_time_.at(start_index) + 1;
 
         std::vector<int> neighbors_index;
         int current_index, move_cost, count = 0;
 
-        while ((!openlist.empty()) && (state_.at(goal_index) != SearchState::CLOSED)) {
+        while ((!openlist.empty()) && (state_.at(goal_index) != SearchState::CLOSED) &&
+                                          (queue_time_.at(goal_index) < max_queue_time_)) {
+            //ROS_WARN("searching %d", count);
             current_index = openlist.top();
             openlist.pop();
-            state_.at(current_index) = SearchState::CLOSED;
+            if (queue_time_.at(current_index) < max_queue_time_) {
+                state_.at(current_index) = SearchState::NOT_HANDLED;
+            }
+            else {
+                state_.at(current_index) = SearchState::CLOSED;
+            }
 
             if (current_index == goal_index) {
                 ROS_INFO("Search takes %d cycle counts", count);
@@ -171,6 +183,7 @@ namespace roborts_global_planner{
 
                     if (state_.at(neighbor_index) == SearchState::NOT_HANDLED) {
                         openlist.push(neighbor_index);
+                        queue_time_.at(neighbor_index) = queue_time_.at(neighbor_index) + 1;
                         state_.at(neighbor_index) = SearchState::OPEN;
                     }
                 }
@@ -178,13 +191,10 @@ namespace roborts_global_planner{
             count++;
         }
 
-        if (state_.at(goal_index) != SearchState::CLOSED) {
+        if (current_index != goal_index) {
             ROS_WARN("Global planner can't search the valid path!");
             return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR, "Valid global path not found.");
         }
-		else {
-			current_index = goal_index;
-		}
 
         unsigned int iter_index = current_index, iter_x, iter_y;
 

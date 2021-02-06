@@ -95,6 +95,8 @@ namespace roborts_global_planner{
 	unsigned int inaccessible_cost_;
 	//! goal_search_tolerance
 	unsigned int goal_search_tolerance_;
+        //! max_queue_time
+        unsigned int max_queue_time_;
 	//! gridmap height size
 	unsigned int gridmap_height_;
 	//! gridmap height width
@@ -103,8 +105,10 @@ namespace roborts_global_planner{
 	unsigned char *cost_;
 	//! search algorithm related distance
 	static std::vector<int> dis_;
-	//! vector that indicates the parent cell index of each cell
-	std::vector<int> parent_;
+	//! vector that indicates the queue time of each cell
+	std::vector<int> queue_time_;
+        //! vector that indicates the parent cell index of each cell
+        std::vector<int> parent_;
 	//! vector that indicates the state of each cell
 	std::vector<SPFAPlanner::SearchState> state_;
   		

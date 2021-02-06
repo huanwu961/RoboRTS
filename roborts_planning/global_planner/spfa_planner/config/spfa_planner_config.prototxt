@@ -1,4 +1,4 @@
 inaccessible_cost: 253
 heuristic_factor: 1.0
 goal_search_tolerance: 0.45
-distance_cost_parameter: 20
+max_queue_time: 2

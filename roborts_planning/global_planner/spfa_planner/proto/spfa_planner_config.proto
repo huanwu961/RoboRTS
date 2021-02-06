@@ -5,5 +5,5 @@ message SPFAPlannerConfig {
     optional uint32 inaccessible_cost = 1 [default = 253];
     optional float heuristic_factor = 2 [default = 1.0];
     optional float goal_search_tolerance = 3 [default = 0.25];
-    optional uint32 distance_cost_parameter = 4 [default = 20];
+    optional uint32 max_queue_time = 4 [default = 10];
 }
