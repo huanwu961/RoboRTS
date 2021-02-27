@@ -134,7 +134,7 @@ namespace roborts_global_planner{
         parent_.resize(gridmap_height_ * gridmap_width_, std::numeric_limits<int>::max());
         state_.resize(gridmap_height_ * gridmap_width_, SearchState::NOT_HANDLED);
 
-        ROS_WARN("max_queue_time: %d", max_queue_time_);
+        //ROS_WARN("max_queue_time: %d", max_queue_time_);
         std::priority_queue<int, std::vector<int>, Compare> openlist;
         dis_.at(start_index) = 0;
         openlist.push(start_index);
