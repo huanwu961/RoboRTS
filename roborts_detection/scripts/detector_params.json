@@ -1,0 +1,22 @@
+{
+    "color": "R",
+    "bgr_threshs": [60, 60],
+    "threshs": 0,
+    "bright_thresh": 95,
+    "light_max_aspect_ratio": 7,
+    "light_min_aspect_ratio": 1,
+    "light_min_area": 100,
+    "light_max_area": 777777700,
+    "light_max_angle_abs": 100,
+    "light_max_angle_diff":25,
+    "armor_center_min_color_average":50,
+    "armor_max_aspect_ratio": 3.5,
+    "armor_min_area": 100,
+    "armor_max_pixel_val": 300,
+    "armor_max_stddev": 100,
+    "armor_max_mean": 700,
+    "field_range":[-0.45,0.45],
+    "resolution":[640,480]
+    
+
+}

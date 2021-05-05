@@ -1,0 +1,4 @@
+Log file created at: 2021/04/15 11:17:06
+Running on machine: ericcsr-NUC8i7BEH
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+E0415 11:17:06.696355  3585 MVCAMAPI.cpp:339] CameraInit Failed, err:-18,Version:2.1.0.12,FriendlyName:MV-UB31#0,SN:020060120099
